@@ -27,22 +27,31 @@ export interface Tool {
 export interface Report {
   id: string;
   client_id: string;
-  data_relatorio: string;
+  created_at: string;
+  updated_at: string;
+  // joined
+  client?: Client;
+  entries?: ReportEntry[];
+}
+
+export interface ReportEntry {
+  id: string;
+  report_id: string;
+  data_relato: string;
   equipe: string;
   condicoes_climaticas: 'ensolarado' | 'parcialmente_nublado' | 'nublado' | 'chuvoso';
   ferramentas_ids: string[];
   atividades_dia: string;
   observacoes: string;
   created_at: string;
-  updated_at: string;
   // joined
-  client?: Client;
   images?: ReportImage[];
 }
 
 export interface ReportImage {
   id: string;
   report_id: string;
+  entry_id: string | null;
   url: string;
   filename: string;
   created_at: string;

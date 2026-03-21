@@ -15,22 +15,28 @@ export default function Dashboard() {
   const loading = lc || lt || lr;
 
   const activeClients = clients.filter((c) => c.status === "ativa").length;
-  const thisMonth = reports.filter((r) => {
-    const d = new Date(r.data_relatorio);
-    const now = new Date();
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-  }).length;
+
+  // Count entries this month across all reports
+  const now = new Date();
+  const entriesThisMonth = reports.reduce((count, r) => {
+    return count + (r.entries || []).filter((e) => {
+      const d = new Date(e.data_relato);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    }).length;
+  }, 0);
 
   const stats = [
     { label: "Clientes Cadastrados", value: clients.length, icon: Users, color: "text-baja-orange" },
     { label: "Obras Ativas", value: activeClients, icon: Building2, color: "text-emerald-600" },
-    { label: "Relatórios este Mês", value: thisMonth, icon: FileText, color: "text-blue-600" },
+    { label: "Relatos este Mês", value: entriesThisMonth, icon: FileText, color: "text-blue-600" },
     { label: "Ferramentas Cadastradas", value: tools.length, icon: Wrench, color: "text-amber-600" },
   ];
 
-  const recentReports = [...reports]
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    .slice(0, 8);
+  // Recent entries across all reports
+  const recentEntries = reports.flatMap((r) =>
+    (r.entries || []).map((e) => ({ ...e, client: r.client }))
+  ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+   .slice(0, 8);
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -60,23 +66,23 @@ export default function Dashboard() {
         <CardContent>
           {loading ? (
             <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
-          ) : recentReports.length === 0 ? (
+          ) : recentEntries.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p className="font-medium">Nenhum relatório criado ainda</p>
-              <p className="text-sm mt-1">Comece criando seu primeiro relatório de obra.</p>
+              <p className="font-medium">Nenhum relato criado ainda</p>
+              <p className="text-sm mt-1">Comece criando seu primeiro relato de obra.</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {recentReports.map((r) => (
-                <div key={r.id} className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors">
+              {recentEntries.map((e) => (
+                <div key={e.id} className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors">
                   <div className="w-2 h-2 rounded-full bg-baja-orange flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">
-                      {r.client?.nome_empreitada || "Obra desconhecida"}
+                      {e.client?.nome_empreitada || "Obra desconhecida"}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {r.client?.nome_cliente} — {format(new Date(r.data_relatorio), "dd 'de' MMMM", { locale: ptBR })}
+                      {e.client?.nome_cliente} — {format(new Date(e.data_relato), "dd 'de' MMMM", { locale: ptBR })}
                     </p>
                   </div>
                 </div>

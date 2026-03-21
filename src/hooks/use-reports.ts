@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { Report, ReportImage } from "@/lib/types";
+import type { Report, ReportEntry, ReportImage } from "@/lib/types";
 
 export function useReports() {
   return useQuery({
@@ -8,13 +8,13 @@ export function useReports() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("reports")
-        .select("*, clients(*), report_images(*)")
+        .select("*, clients(*), report_entries(*)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data as any[]).map((r) => ({
         ...r,
         client: r.clients,
-        images: r.report_images,
+        entries: r.report_entries,
       })) as Report[];
     },
   });
@@ -27,33 +27,110 @@ export function useReport(id: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("reports")
-        .select("*, clients(*), report_images(*)")
+        .select("*, clients(*), report_entries(*)")
         .eq("id", id!)
         .single();
       if (error) throw error;
-      return { ...data, client: (data as any).clients, images: (data as any).report_images } as Report;
+      const report = {
+        ...data,
+        client: (data as any).clients,
+        entries: (data as any).report_entries,
+      } as Report;
+
+      // Fetch images for each entry
+      if (report.entries && report.entries.length > 0) {
+        const entryIds = report.entries.map((e) => e.id);
+        const { data: images } = await supabase
+          .from("report_images")
+          .select("*")
+          .in("entry_id", entryIds);
+        if (images) {
+          const imagesByEntry = (images as ReportImage[]).reduce((acc, img) => {
+            const eid = img.entry_id || "";
+            if (!acc[eid]) acc[eid] = [];
+            acc[eid].push(img);
+            return acc;
+          }, {} as Record<string, ReportImage[]>);
+          report.entries = report.entries.map((e) => ({
+            ...e,
+            images: imagesByEntry[e.id] || [],
+          }));
+        }
+        // Sort entries by date
+        report.entries.sort((a, b) => new Date(a.data_relato).getTime() - new Date(b.data_relato).getTime());
+      }
+
+      return report;
     },
   });
 }
 
-export function useCreateReport() {
+/** Find or create a report for a given client */
+export function useGetOrCreateReport() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (report: Omit<Report, "id" | "created_at" | "updated_at" | "client" | "images">) => {
-      const { data, error } = await supabase.from("reports").insert(report).select().single();
+    mutationFn: async (clientId: string) => {
+      // Check if report exists for this client
+      const { data: existing } = await supabase
+        .from("reports")
+        .select("id")
+        .eq("client_id", clientId)
+        .maybeSingle();
+      if (existing) return existing.id as string;
+
+      // Create new report
+      const { data, error } = await supabase
+        .from("reports")
+        .insert({ client_id: clientId })
+        .select("id")
+        .single();
       if (error) throw error;
+      return data.id as string;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["reports"] }),
+  });
+}
+
+export function useCreateEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (entry: {
+      report_id: string;
+      data_relato: string;
+      equipe: string;
+      condicoes_climaticas: string;
+      ferramentas_ids: string[];
+      atividades_dia: string;
+      observacoes: string;
+    }) => {
+      const { data, error } = await supabase.from("report_entries").insert(entry).select().single();
+      if (error) throw error;
+      // Update report's updated_at
+      await supabase.from("reports").update({ updated_at: new Date().toISOString() }).eq("id", entry.report_id);
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["reports"] }),
   });
 }
 
-export function useUpdateReport() {
+export function useUpdateEntry() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...data }: { id: string } & Partial<Report>) => {
-      const { client, images, ...rest } = data as any;
-      const { error } = await supabase.from("reports").update({ ...rest, updated_at: new Date().toISOString() }).eq("id", id);
+    mutationFn: async ({ id, report_id, ...rest }: { id: string; report_id: string } & Partial<ReportEntry>) => {
+      const { images, ...data } = rest as any;
+      const { error } = await supabase.from("report_entries").update(data).eq("id", id);
+      if (error) throw error;
+      await supabase.from("reports").update({ updated_at: new Date().toISOString() }).eq("id", report_id);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["reports"] }),
+  });
+}
+
+export function useDeleteEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("report_entries").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["reports"] }),
@@ -71,19 +148,19 @@ export function useDeleteReport() {
   });
 }
 
-export function useUploadReportImages() {
+export function useUploadEntryImages() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ reportId, files }: { reportId: string; files: File[] }) => {
+    mutationFn: async ({ entryId, reportId, files }: { entryId: string; reportId: string; files: File[] }) => {
       const uploaded: ReportImage[] = [];
       for (const file of files) {
-        const path = `${reportId}/${crypto.randomUUID()}-${file.name}`;
+        const path = `${reportId}/${entryId}/${crypto.randomUUID()}-${file.name}`;
         const { error: uploadError } = await supabase.storage.from("report-images").upload(path, file);
         if (uploadError) throw uploadError;
         const { data: urlData } = supabase.storage.from("report-images").getPublicUrl(path);
         const { data, error } = await supabase
           .from("report_images")
-          .insert({ report_id: reportId, url: urlData.publicUrl, filename: file.name })
+          .insert({ report_id: reportId, entry_id: entryId, url: urlData.publicUrl, filename: file.name })
           .select()
           .single();
         if (error) throw error;
