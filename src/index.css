@@ -74,21 +74,68 @@
   .baja-gradient {
     background: linear-gradient(135deg, hsl(var(--baja-navy)) 0%, hsl(216 47% 28%) 100%);
   }
-  
+
   .a4-page {
-    width: 210mm;
-    min-height: 297mm;
-    padding: 20mm;
+    width: 794px;
+    min-height: 1123px;
     background: white;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    position: relative;
+    font-family: 'Inter', sans-serif;
+    page-break-after: always;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  }
+
+  .a4-page-border {
+    position: absolute;
+    inset: 8px;
+    border: 1.5px solid #1A2B4A;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .a4-left-line {
+    position: absolute;
+    left: 40px;
+    top: 86px;
+    bottom: 140px;
+    width: 2px;
+    background: #1A2B4A;
+    z-index: 0;
+  }
+
+  .a4-footer-diagonal {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    width: 80px;
+    height: 60px;
+    background: #1A2B4A;
+    clip-path: polygon(0 0, 0 100%, 100% 100%);
+    z-index: 0;
   }
 
   @media print {
+    @page {
+      size: A4;
+      margin: 0;
+    }
+
+    body * {
+      visibility: hidden;
+    }
+
+    .a4-page,
+    .a4-page * {
+      visibility: visible;
+    }
+
     .a4-page {
       box-shadow: none;
       margin: 0;
-      padding: 15mm;
+      page-break-after: always;
+      position: relative;
     }
+
     .no-print {
       display: none !important;
     }
