@@ -1,20 +1,26 @@
 import { useState } from "react";
-import { useAppStore } from "@/lib/store";
+import { useClients } from "@/hooks/use-clients";
+import { useReports } from "@/hooks/use-reports";
+import { useTools } from "@/hooks/use-tools";
 import { WEATHER_OPTIONS } from "@/lib/types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, Printer, FileText } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Printer, FileText } from "lucide-react";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 
 export default function ExportPage() {
-  const { clients, reports, tools } = useAppStore();
+  const { data: clients = [], isLoading: lc } = useClients();
+  const { data: reports = [], isLoading: lr } = useReports();
+  const { data: tools = [] } = useTools();
   const [clientId, setClientId] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+
+  const loading = lc || lr;
 
   const filtered = reports.filter((r) => {
     if (clientId && r.client_id !== clientId) return false;
@@ -36,36 +42,42 @@ export default function ExportPage() {
 
       <Card className="shadow-sm no-print">
         <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>Obra</Label>
-              <Select value={clientId} onValueChange={setClientId}>
-                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>
-                  {clients.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.nome_empreitada} — {c.nome_cliente}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Data Início</Label>
-              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Data Fim</Label>
-              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-            </div>
-          </div>
-          <div className="flex justify-end mt-4">
-            <Button onClick={handlePrint} disabled={filtered.length === 0} className="bg-baja-orange hover:bg-baja-orange/90 text-accent-foreground">
-              <Printer className="h-4 w-4 mr-2" /> Imprimir / Exportar PDF
-            </Button>
-          </div>
+          {loading ? (
+            <Skeleton className="h-20 w-full" />
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Obra</Label>
+                  <Select value={clientId} onValueChange={setClientId}>
+                    <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                    <SelectContent>
+                      {clients.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.nome_empreitada} — {c.nome_cliente}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Data Início</Label>
+                  <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Data Fim</Label>
+                  <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+                </div>
+              </div>
+              <div className="flex justify-end mt-4">
+                <Button onClick={handlePrint} disabled={filtered.length === 0} className="bg-baja-orange hover:bg-baja-orange/90 text-accent-foreground">
+                  <Printer className="h-4 w-4 mr-2" /> Imprimir / Exportar PDF
+                </Button>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
-      {filtered.length === 0 ? (
+      {!loading && filtered.length === 0 ? (
         <Card className="shadow-sm">
           <CardContent className="py-16 text-center text-muted-foreground">
             <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
@@ -78,6 +90,7 @@ export default function ExportPage() {
           {filtered.map((report) => {
             const usedTools = tools.filter((t) => report.ferramentas_ids?.includes(t.id));
             const weather = WEATHER_OPTIONS.find((w) => w.value === report.condicoes_climaticas);
+            const reportClient = report.client || client;
             return (
               <div key={report.id} className="a4-page mx-auto" style={{ maxWidth: "210mm" }}>
                 <div className="flex items-center justify-between border-b-2 pb-4 mb-6" style={{ borderColor: "hsl(216, 47%, 20%)" }}>
@@ -94,8 +107,8 @@ export default function ExportPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
-                  <div><span className="text-xs font-semibold uppercase" style={{ color: "hsl(215, 14%, 44%)" }}>Cliente:</span> {client?.nome_cliente}</div>
-                  <div><span className="text-xs font-semibold uppercase" style={{ color: "hsl(215, 14%, 44%)" }}>Obra:</span> {client?.nome_empreitada}</div>
+                  <div><span className="text-xs font-semibold uppercase" style={{ color: "hsl(215, 14%, 44%)" }}>Cliente:</span> {reportClient?.nome_cliente}</div>
+                  <div><span className="text-xs font-semibold uppercase" style={{ color: "hsl(215, 14%, 44%)" }}>Obra:</span> {reportClient?.nome_empreitada}</div>
                   <div><span className="text-xs font-semibold uppercase" style={{ color: "hsl(215, 14%, 44%)" }}>Data:</span> {format(new Date(report.data_relatorio), "dd/MM/yyyy")}</div>
                   <div><span className="text-xs font-semibold uppercase" style={{ color: "hsl(215, 14%, 44%)" }}>Clima:</span> {weather?.label}</div>
                 </div>
@@ -124,6 +137,17 @@ export default function ExportPage() {
                   <div className="mb-4">
                     <h3 className="font-semibold text-sm mb-1 border-b pb-1" style={{ color: "hsl(216, 47%, 20%)" }}>Observações</h3>
                     <p className="text-sm whitespace-pre-wrap">{report.observacoes}</p>
+                  </div>
+                )}
+
+                {report.images && report.images.length > 0 && (
+                  <div className="mb-4">
+                    <h3 className="font-semibold text-sm mb-1 border-b pb-1" style={{ color: "hsl(216, 47%, 20%)" }}>Registros Fotográficos</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+                      {report.images.map((img) => (
+                        <img key={img.id} src={img.url} alt={img.filename} className="w-full h-32 object-cover rounded border" />
+                      ))}
+                    </div>
                   </div>
                 )}
 

@@ -61,7 +61,7 @@ export interface WebhookLog {
   webhook_id: string;
   event_type: string;
   status_code: number;
-  timestamp: string;
+  created_at: string;
   payload: string;
 }
 

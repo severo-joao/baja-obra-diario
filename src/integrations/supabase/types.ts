@@ -14,7 +14,222 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      clients: {
+        Row: {
+          cpf_cnpj: string
+          created_at: string
+          data_inicio: string
+          data_prevista_conclusao: string
+          email: string
+          endereco_obra: string
+          id: string
+          nome_cliente: string
+          nome_empreitada: string
+          observacoes: string
+          status: string
+          telefone: string
+          updated_at: string
+        }
+        Insert: {
+          cpf_cnpj?: string
+          created_at?: string
+          data_inicio?: string
+          data_prevista_conclusao?: string
+          email?: string
+          endereco_obra?: string
+          id?: string
+          nome_cliente: string
+          nome_empreitada: string
+          observacoes?: string
+          status?: string
+          telefone?: string
+          updated_at?: string
+        }
+        Update: {
+          cpf_cnpj?: string
+          created_at?: string
+          data_inicio?: string
+          data_prevista_conclusao?: string
+          email?: string
+          endereco_obra?: string
+          id?: string
+          nome_cliente?: string
+          nome_empreitada?: string
+          observacoes?: string
+          status?: string
+          telefone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      report_images: {
+        Row: {
+          created_at: string
+          filename: string
+          id: string
+          report_id: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          filename?: string
+          id?: string
+          report_id: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          filename?: string
+          id?: string
+          report_id?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_images_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reports: {
+        Row: {
+          atividades_dia: string
+          client_id: string
+          condicoes_climaticas: string
+          created_at: string
+          data_relatorio: string
+          equipe: string
+          ferramentas_ids: string[]
+          id: string
+          observacoes: string
+          updated_at: string
+        }
+        Insert: {
+          atividades_dia?: string
+          client_id: string
+          condicoes_climaticas?: string
+          created_at?: string
+          data_relatorio: string
+          equipe?: string
+          ferramentas_ids?: string[]
+          id?: string
+          observacoes?: string
+          updated_at?: string
+        }
+        Update: {
+          atividades_dia?: string
+          client_id?: string
+          condicoes_climaticas?: string
+          created_at?: string
+          data_relatorio?: string
+          equipe?: string
+          ferramentas_ids?: string[]
+          id?: string
+          observacoes?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tools: {
+        Row: {
+          categoria: string
+          codigo_patrimonio: string
+          created_at: string
+          descricao: string
+          id: string
+          nome: string
+          status: string
+        }
+        Insert: {
+          categoria?: string
+          codigo_patrimonio?: string
+          created_at?: string
+          descricao?: string
+          id?: string
+          nome: string
+          status?: string
+        }
+        Update: {
+          categoria?: string
+          codigo_patrimonio?: string
+          created_at?: string
+          descricao?: string
+          id?: string
+          nome?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      webhook_logs: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          payload: string
+          status_code: number
+          webhook_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          payload?: string
+          status_code?: number
+          webhook_id: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          payload?: string
+          status_code?: number
+          webhook_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_logs_webhook_id_fkey"
+            columns: ["webhook_id"]
+            isOneToOne: false
+            referencedRelation: "webhooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webhooks: {
+        Row: {
+          active: boolean
+          created_at: string
+          event_type: string
+          id: string
+          url: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          event_type: string
+          id?: string
+          url: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          event_type?: string
+          id?: string
+          url?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
