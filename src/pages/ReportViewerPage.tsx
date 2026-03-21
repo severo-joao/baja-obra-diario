@@ -31,9 +31,6 @@ export default function ReportViewerPage() {
     );
   }
 
-  const usedTools = tools.filter((t) => report.ferramentas_ids?.includes(t.id));
-  const weather = WEATHER_OPTIONS.find((w) => w.value === report.condicoes_climaticas);
-
   const handlePrint = () => window.print();
 
   return (
@@ -42,7 +39,7 @@ export default function ReportViewerPage() {
         <Button variant="ghost" size="icon" onClick={() => navigate("/relatorios")}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h1 className="text-xl font-bold flex-1">Visualizar Relatório</h1>
+        <h1 className="text-xl font-bold flex-1">Relatório — {client.nome_empreitada}</h1>
         <Button variant="outline" onClick={handlePrint}>
           <Printer className="h-4 w-4 mr-2" /> Imprimir
         </Button>
@@ -50,6 +47,7 @@ export default function ReportViewerPage() {
 
       <div className="flex justify-center">
         <div ref={printRef} className="a4-page mx-auto" style={{ maxWidth: "210mm" }}>
+          {/* Header */}
           <div className="flex items-center justify-between border-b-2 border-foreground/20 pb-4 mb-6">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: "hsl(27, 81%, 53%)" }}>
@@ -61,11 +59,12 @@ export default function ReportViewerPage() {
               </div>
             </div>
             <div className="text-right">
-              <p className="text-xs" style={{ color: "hsl(215, 14%, 44%)" }}>Relatório de Obra</p>
+              <p className="text-xs" style={{ color: "hsl(215, 14%, 44%)" }}>Diário de Obra</p>
               <p className="font-mono text-xs" style={{ color: "hsl(215, 14%, 44%)" }}>#{report.id.slice(0, 8).toUpperCase()}</p>
             </div>
           </div>
 
+          {/* Client info */}
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "hsl(215, 14%, 44%)" }}>Cliente</p>
@@ -75,55 +74,64 @@ export default function ReportViewerPage() {
               <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "hsl(215, 14%, 44%)" }}>Obra</p>
               <p className="font-medium">{client.nome_empreitada}</p>
             </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "hsl(215, 14%, 44%)" }}>Data</p>
-              <p className="font-medium">{format(new Date(report.data_relatorio), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "hsl(215, 14%, 44%)" }}>Clima</p>
-              <p className="font-medium">{weather?.label}</p>
-            </div>
           </div>
 
-          <table className="w-full text-sm border mb-6">
-            <thead>
-              <tr style={{ backgroundColor: "hsl(216, 47%, 20%)" }}>
-                <th className="text-left p-2 font-medium" style={{ color: "white" }}>Equipe</th>
-                <th className="text-left p-2 font-medium" style={{ color: "white" }}>Ferramentas Utilizadas</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-t">
-                <td className="p-2 align-top whitespace-pre-wrap">{report.equipe || "—"}</td>
-                <td className="p-2 align-top">{usedTools.length > 0 ? usedTools.map((t) => t.nome).join(", ") : "—"}</td>
-              </tr>
-            </tbody>
-          </table>
+          {/* Entries */}
+          {(!report.entries || report.entries.length === 0) ? (
+            <p className="text-sm text-muted-foreground text-center py-8">Nenhum relato registrado.</p>
+          ) : (
+            <div className="space-y-8">
+              {report.entries.map((entry, idx) => {
+                const usedTools = tools.filter((t) => entry.ferramentas_ids?.includes(t.id));
+                const weather = WEATHER_OPTIONS.find((w) => w.value === entry.condicoes_climaticas);
 
-          <div className="mb-6">
-            <h3 className="font-semibold text-sm mb-2 pb-1 border-b" style={{ color: "hsl(216, 47%, 20%)" }}>Atividades do Dia</h3>
-            <p className="text-sm whitespace-pre-wrap leading-relaxed">{report.atividades_dia}</p>
-          </div>
+                return (
+                  <div key={entry.id} className="border-t pt-4">
+                    <h3 className="font-semibold text-sm mb-3" style={{ color: "hsl(216, 47%, 20%)" }}>
+                      Relato #{idx + 1} — {format(new Date(entry.data_relato), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                    </h3>
 
-          {report.observacoes && (
-            <div className="mb-6">
-              <h3 className="font-semibold text-sm mb-2 pb-1 border-b" style={{ color: "hsl(216, 47%, 20%)" }}>Observações Importantes</h3>
-              <p className="text-sm whitespace-pre-wrap leading-relaxed">{report.observacoes}</p>
+                    <div className="grid grid-cols-2 gap-3 mb-3 text-sm">
+                      <div><span className="text-xs font-semibold uppercase" style={{ color: "hsl(215, 14%, 44%)" }}>Clima:</span> {weather?.label}</div>
+                      <div><span className="text-xs font-semibold uppercase" style={{ color: "hsl(215, 14%, 44%)" }}>Ferramentas:</span> {usedTools.length > 0 ? usedTools.map((t) => t.nome).join(", ") : "—"}</div>
+                    </div>
+
+                    {entry.equipe && (
+                      <div className="mb-3">
+                        <p className="text-xs font-semibold uppercase" style={{ color: "hsl(215, 14%, 44%)" }}>Equipe</p>
+                        <p className="text-sm whitespace-pre-wrap">{entry.equipe}</p>
+                      </div>
+                    )}
+
+                    <div className="mb-3">
+                      <p className="text-xs font-semibold uppercase" style={{ color: "hsl(215, 14%, 44%)" }}>Atividades do Dia</p>
+                      <p className="text-sm whitespace-pre-wrap leading-relaxed">{entry.atividades_dia}</p>
+                    </div>
+
+                    {entry.observacoes && (
+                      <div className="mb-3">
+                        <p className="text-xs font-semibold uppercase" style={{ color: "hsl(215, 14%, 44%)" }}>Observações</p>
+                        <p className="text-sm whitespace-pre-wrap leading-relaxed">{entry.observacoes}</p>
+                      </div>
+                    )}
+
+                    {entry.images && entry.images.length > 0 && (
+                      <div className="mt-3">
+                        <p className="text-xs font-semibold uppercase mb-2" style={{ color: "hsl(215, 14%, 44%)" }}>Registros Fotográficos</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {entry.images.map((img) => (
+                            <img key={img.id} src={img.url} alt={img.filename} className="w-full h-32 object-cover rounded border" />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 
-          {report.images && report.images.length > 0 && (
-            <div className="mb-6">
-              <h3 className="font-semibold text-sm mb-2 pb-1 border-b" style={{ color: "hsl(216, 47%, 20%)" }}>Registros Fotográficos</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
-                {report.images.map((img) => (
-                  <img key={img.id} src={img.url} alt={img.filename} className="w-full h-32 object-cover rounded border" />
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="mt-auto pt-6 border-t text-center" style={{ color: "hsl(215, 14%, 44%)" }}>
+          <div className="mt-8 pt-6 border-t text-center" style={{ color: "hsl(215, 14%, 44%)" }}>
             <p className="text-xs">BAJA Engenharia & Construções — Diário de Obras</p>
           </div>
         </div>

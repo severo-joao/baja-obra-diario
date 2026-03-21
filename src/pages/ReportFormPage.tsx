@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
-import { useClients } from "@/hooks/use-clients";
 import { useTools } from "@/hooks/use-tools";
-import { useReport, useCreateReport, useUpdateReport, useUploadReportImages } from "@/hooks/use-reports";
-import type { Report } from "@/lib/types";
+import { useCreateEntry, useUpdateEntry, useUploadEntryImages } from "@/hooks/use-reports";
+import type { ReportEntry } from "@/lib/types";
 import { WEATHER_OPTIONS } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,22 +14,41 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Save, ImagePlus, X } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 export default function ReportFormPage() {
-  const { data: clients = [] } = useClients();
   const { data: tools = [] } = useTools();
   const navigate = useNavigate();
-  const { id } = useParams();
-  const { data: existing, isLoading } = useReport(id);
-  const createReport = useCreateReport();
-  const updateReport = useUpdateReport();
-  const uploadImages = useUploadReportImages();
+  const { id, entryId } = useParams(); // id = reportId for new entry, entryId = existing entry id
+  const createEntry = useCreateEntry();
+  const updateEntry = useUpdateEntry();
+  const uploadImages = useUploadEntryImages();
+  const qc = useQueryClient();
+
+  const isEdit = !!entryId;
+
+  // Fetch existing entry if editing
+  const { data: existing, isLoading } = useQuery({
+    queryKey: ["report_entries", entryId],
+    enabled: isEdit,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("report_entries")
+        .select("*, report_images(*)")
+        .eq("id", entryId!)
+        .single();
+      if (error) throw error;
+      return { ...data, images: (data as any).report_images } as ReportEntry;
+    },
+  });
+
+  const reportId = isEdit ? existing?.report_id : id;
 
   const [form, setForm] = useState({
-    client_id: "",
-    data_relatorio: new Date().toISOString().split("T")[0],
+    data_relato: new Date().toISOString().split("T")[0],
     equipe: "",
-    condicoes_climaticas: "ensolarado" as Report["condicoes_climaticas"],
+    condicoes_climaticas: "ensolarado" as ReportEntry["condicoes_climaticas"],
     ferramentas_ids: [] as string[],
     atividades_dia: "",
     observacoes: "",
@@ -42,8 +60,7 @@ export default function ReportFormPage() {
   useEffect(() => {
     if (existing) {
       setForm({
-        client_id: existing.client_id,
-        data_relatorio: existing.data_relatorio,
+        data_relato: existing.data_relato,
         equipe: existing.equipe,
         condicoes_climaticas: existing.condicoes_climaticas,
         ferramentas_ids: existing.ferramentas_ids || [],
@@ -79,30 +96,30 @@ export default function ReportFormPage() {
   };
 
   const handleSave = async () => {
-    if (!form.client_id) { toast.error("Selecione uma obra."); return; }
     if (!form.atividades_dia) { toast.error("Descreva as atividades do dia."); return; }
+    if (!reportId) { toast.error("Relatório não encontrado."); return; }
 
     try {
-      if (existing) {
-        await updateReport.mutateAsync({ id: existing.id, ...form });
+      if (isEdit && existing) {
+        await updateEntry.mutateAsync({ id: existing.id, report_id: existing.report_id, ...form });
         if (files.length > 0) {
-          await uploadImages.mutateAsync({ reportId: existing.id, files });
+          await uploadImages.mutateAsync({ entryId: existing.id, reportId: existing.report_id, files });
         }
-        toast.success("Relatório atualizado!");
+        toast.success("Relato atualizado!");
       } else {
-        const created = await createReport.mutateAsync(form);
+        const created = await createEntry.mutateAsync({ report_id: reportId, ...form });
         if (files.length > 0 && created) {
-          await uploadImages.mutateAsync({ reportId: (created as any).id, files });
+          await uploadImages.mutateAsync({ entryId: (created as any).id, reportId, files });
         }
-        toast.success("Relatório salvo!");
+        toast.success("Relato salvo!");
       }
       navigate("/relatorios");
     } catch {
-      toast.error("Erro ao salvar relatório.");
+      toast.error("Erro ao salvar relato.");
     }
   };
 
-  if (id && isLoading) {
+  if (isEdit && isLoading) {
     return <div className="space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-96 w-full" /></div>;
   }
 
@@ -113,29 +130,16 @@ export default function ReportFormPage() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold">{existing ? "Editar Relatório" : "Novo Relatório"}</h1>
-          <p className="text-muted-foreground text-sm mt-1">Preencha os dados do relatório diário</p>
+          <h1 className="text-2xl font-bold">{isEdit ? "Editar Relato" : "Novo Relato Diário"}</h1>
+          <p className="text-muted-foreground text-sm mt-1">Preencha os dados do relato diário</p>
         </div>
       </div>
 
       <Card className="shadow-sm">
         <CardContent className="p-6 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Obra *</Label>
-              <Select value={form.client_id} onValueChange={(v) => setForm({ ...form, client_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Selecione a obra" /></SelectTrigger>
-                <SelectContent>
-                  {clients.filter((c) => c.status === "ativa").map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.nome_empreitada} — {c.nome_cliente}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Data do Relatório</Label>
-              <Input type="date" value={form.data_relatorio} onChange={(e) => setForm({ ...form, data_relatorio: e.target.value })} />
-            </div>
+          <div className="space-y-2">
+            <Label>Data do Relato</Label>
+            <Input type="date" value={form.data_relato} onChange={(e) => setForm({ ...form, data_relato: e.target.value })} />
           </div>
 
           <div className="space-y-2">
@@ -145,7 +149,7 @@ export default function ReportFormPage() {
 
           <div className="space-y-2">
             <Label>Condições Climáticas</Label>
-            <Select value={form.condicoes_climaticas} onValueChange={(v) => setForm({ ...form, condicoes_climaticas: v as Report["condicoes_climaticas"] })}>
+            <Select value={form.condicoes_climaticas} onValueChange={(v) => setForm({ ...form, condicoes_climaticas: v as ReportEntry["condicoes_climaticas"] })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {WEATHER_OPTIONS.map((w) => (
@@ -207,8 +211,8 @@ export default function ReportFormPage() {
 
           <div className="flex justify-end gap-3 pt-4 border-t">
             <Button variant="outline" onClick={() => navigate("/relatorios")}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={createReport.isPending || updateReport.isPending || uploadImages.isPending} className="bg-baja-orange hover:bg-baja-orange/90 text-accent-foreground">
-              <Save className="h-4 w-4 mr-2" /> Salvar Relatório
+            <Button onClick={handleSave} disabled={createEntry.isPending || updateEntry.isPending || uploadImages.isPending} className="bg-baja-orange hover:bg-baja-orange/90 text-accent-foreground">
+              <Save className="h-4 w-4 mr-2" /> Salvar Relato
             </Button>
           </div>
         </CardContent>
