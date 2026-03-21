@@ -1,3 +1,4 @@
+# Memory: index.md
 BAJA Diário de Obras — construction diary management system for BAJA Engenharia & Construções
 
 ## Brand
@@ -8,16 +9,12 @@ BAJA Diário de Obras — construction diary management system for BAJA Engenhar
 - Language: Portuguese (Brazil) throughout
 
 ## Architecture
-- React Query hooks for all data (use-clients, use-tools, use-reports, use-webhooks)
+- Data model: Client → 1 Report → N ReportEntries → N ReportImages
+- report_entries table holds daily logs (equipe, clima, atividades, etc.)
+- report_images linked to entries via entry_id
+- reports table is a simple container (client_id only)
+- React Query hooks for all CRUD
 - Sidebar layout with SidebarProvider
 - Pages: Dashboard, Clients, Tools, Reports, ReportForm, ReportViewer, Export, Documentation, Settings
-- Lovable Cloud (Supabase) for persistence
-
-## Database Tables
-- clients, tools, reports, report_images, webhooks, webhook_logs
-- Storage bucket: report-images (public)
-- RLS: open access (no auth yet) — all policies use USING(true)
-
-## Pending
-- Authentication (RLS policies need user-scoped access)
-- Real webhook HTTP calls (currently just logs test events)
+- Routes: /relatorios/entrada/novo/:id (new entry), /relatorios/entrada/editar/:entryId (edit entry)
+- Lovable Cloud enabled (Supabase) — fully wired to DB
