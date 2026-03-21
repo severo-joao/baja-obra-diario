@@ -62,9 +62,54 @@ export type Database = {
         }
         Relationships: []
       }
+      report_entries: {
+        Row: {
+          atividades_dia: string
+          condicoes_climaticas: string
+          created_at: string
+          data_relato: string
+          equipe: string
+          ferramentas_ids: string[]
+          id: string
+          observacoes: string
+          report_id: string
+        }
+        Insert: {
+          atividades_dia?: string
+          condicoes_climaticas?: string
+          created_at?: string
+          data_relato: string
+          equipe?: string
+          ferramentas_ids?: string[]
+          id?: string
+          observacoes?: string
+          report_id: string
+        }
+        Update: {
+          atividades_dia?: string
+          condicoes_climaticas?: string
+          created_at?: string
+          data_relato?: string
+          equipe?: string
+          ferramentas_ids?: string[]
+          id?: string
+          observacoes?: string
+          report_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_entries_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       report_images: {
         Row: {
           created_at: string
+          entry_id: string | null
           filename: string
           id: string
           report_id: string
@@ -72,6 +117,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          entry_id?: string | null
           filename?: string
           id?: string
           report_id: string
@@ -79,12 +125,20 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          entry_id?: string | null
           filename?: string
           id?: string
           report_id?: string
           url?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "report_images_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "report_entries"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "report_images_report_id_fkey"
             columns: ["report_id"]
@@ -96,39 +150,21 @@ export type Database = {
       }
       reports: {
         Row: {
-          atividades_dia: string
           client_id: string
-          condicoes_climaticas: string
           created_at: string
-          data_relatorio: string
-          equipe: string
-          ferramentas_ids: string[]
           id: string
-          observacoes: string
           updated_at: string
         }
         Insert: {
-          atividades_dia?: string
           client_id: string
-          condicoes_climaticas?: string
           created_at?: string
-          data_relatorio: string
-          equipe?: string
-          ferramentas_ids?: string[]
           id?: string
-          observacoes?: string
           updated_at?: string
         }
         Update: {
-          atividades_dia?: string
           client_id?: string
-          condicoes_climaticas?: string
           created_at?: string
-          data_relatorio?: string
-          equipe?: string
-          ferramentas_ids?: string[]
           id?: string
-          observacoes?: string
           updated_at?: string
         }
         Relationships: [
