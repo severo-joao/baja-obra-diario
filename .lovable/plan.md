@@ -1,57 +1,53 @@
 
 
-## Plano: Reestruturar Relatórios para modelo "1 Relatório por Obra + Relatos Diários"
+## Plano: Redesign do Layout A4 — Letterhead Oficial BAJA
 
-### Problema Atual
-Hoje cada entrada diária é um `report` independente. O usuário quer que cada obra tenha **um único relatório** que funciona como um diário, onde se adicionam **relatos diários** (entries). As imagens de cada relato devem aparecer inline no relatório.
+### Resumo
+Redesenhar completamente o layout `.a4-page` nos componentes `ReportViewerPage` e `ExportPage`, além do CSS em `index.css`, para replicar o papel timbrado oficial da BAJA com header, borda lateral, footer decorativo e formatação profissional.
 
-### Mudanças no Banco de Dados
+### Arquivos Alterados
 
-Criar tabela `report_entries` para os relatos diários:
+**1. `src/index.css`** — Reescrever `.a4-page` e estilos de impressão:
+- Dimensões fixas: 794px × 1123px com borda navy 1.5px inset 8px
+- `::before` pseudo-element para a linha vertical esquerda (2px, #1A2B4A) do header ao footer
+- `page-break-after: always` para múltiplas páginas
+- Print stylesheet escondendo tudo exceto `.a4-page`
 
+**2. `src/components/report/A4ReportPage.tsx`** (novo) — Componente reutilizável do layout A4:
+- **Header**: Logo "B" em caixa navy 70×70px (esquerda) + "Baja Engenharia & Construções" e CNPJ (direita) + separador
+- **Linha vertical esquerda**: 2px navy contínua pela margem esquerda
+- **Conteúdo**: Slot para children com as seções formatadas
+- **Footer**: Forma diagonal navy no canto inferior esquerdo (clip-path), texto de contato, "Página X de Y"
+- **Borda**: Moldura navy 1.5px com 8px de inset
+
+**3. `src/components/report/ReportEntrySection.tsx`** (novo) — Componente para cada relato diário:
+- Título "RELATÓRIO DIÁRIO DE OBRA" centralizado, bold, navy
+- Info block: Obra, Cliente, Data, Responsável
+- Seção Clima com ícone
+- Seção Equipe
+- Seção Ferramentas como badges/tags
+- Seção Atividades com borda esquerda laranja 3px (#E87722)
+- Seção Observações com borda esquerda laranja 3px
+- Seção Fotos em grid 2 colunas com bordas sutis
+
+**4. `src/pages/ReportViewerPage.tsx`** — Usar o novo `A4ReportPage` + `ReportEntrySection`, cada entrada como uma página A4 separada
+
+**5. `src/pages/ExportPage.tsx`** — Mesmo layout, cada relato filtrado renderizado em sua própria página A4
+
+### Detalhes do Footer
 ```text
-report_entries
-├── id (uuid, PK)
-├── report_id (uuid, FK → reports)
-├── data_relato (text, data do relato)
-├── equipe (text)
-├── condicoes_climaticas (text)
-├── ferramentas_ids (text[])
-├── atividades_dia (text)
-├── observacoes (text)
-├── created_at (timestamptz)
+┌──────────────────────────────┐
+│  ╲                           │  ← clip-path diagonal navy ~80×60px
+│   ╲__________________________│
+│ Copacabana | Rio de Janeiro  │
+│ Rua Ministro... | www...     │
+│       Página X de Y          │
+└──────────────────────────────┘
 ```
 
-Mover `report_images.report_id` para referenciar `report_entries` via nova coluna `entry_id`:
-- Adicionar coluna `entry_id uuid` na tabela `report_images`
-- Imagens ficam vinculadas ao relato específico, não ao relatório geral
-
-A tabela `reports` fica simplificada — um registro por obra:
-- `id`, `client_id`, `created_at`, `updated_at`
-- Remover campos de dados diários (equipe, clima, etc.) que migram para `report_entries`
-
-### Mudanças nas Páginas
-
-1. **ReportsPage** — Cada obra mostra seu relatório único. Ao clicar, abre o relatório com a lista de relatos. Botão "+ Novo Relato" adiciona uma entrada ao relatório existente (ou cria o relatório automaticamente se não existir).
-
-2. **ReportFormPage** — Formulário agora cria/edita um `report_entry`. Se a obra ainda não tem relatório, cria o relatório e a primeira entrada juntos. Upload de imagens vinculado ao `entry_id`.
-
-3. **ReportViewerPage** — Exibe o relatório completo da obra com todos os relatos em sequência cronológica. Cada relato mostra seus dados (data, equipe, clima, atividades, observações) e **suas imagens inline** logo abaixo.
-
-4. **ExportPage** — Filtra por obra e período, renderiza os relatos do período com imagens embutidas em cada seção.
-
-5. **Dashboard** — Conta relatórios (obras com diário) e relatos do mês.
-
-### Hooks Atualizados
-
-- `use-reports.ts` — Refatorar para buscar relatórios com entries e images nested. Adicionar `useCreateEntry`, `useUpdateEntry`, `useDeleteEntry`.
-
-### Resumo do Fluxo
-
-```text
-Obra (client) → 1 Relatório (report) → N Relatos (report_entries)
-                                          └── N Imagens (report_images)
-```
-
-O usuário vai à página de Relatórios, vê as obras, clica em uma obra para ver o diário completo, e adiciona novos relatos diários com fotos que aparecem integradas no documento.
+### Detalhes CSS
+- `.a4-page` com `position: relative`, dimensões fixas em px
+- Borda decorativa via box com `outline` ou dupla borda (inset 8px)
+- Diagonal do footer via `clip-path: polygon(0 0, 0 100%, 80px 100%)`
+- `@media print` — `size: A4`, esconde `.no-print`, remove box-shadow
 
