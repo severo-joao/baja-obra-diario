@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { useAppStore } from "@/lib/store";
+import { useReports, useDeleteReport } from "@/hooks/use-reports";
+import { useClients } from "@/hooks/use-clients";
 import { WEATHER_OPTIONS } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, FileText, Eye, Trash2, ChevronRight } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
@@ -12,10 +13,13 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 export default function ReportsPage() {
-  const { reports, clients, deleteReport } = useAppStore();
+  const { data: reports = [], isLoading: lr } = useReports();
+  const { data: clients = [], isLoading: lc } = useClients();
+  const deleteReport = useDeleteReport();
   const navigate = useNavigate();
 
-  // Group reports by client
+  const loading = lr || lc;
+
   const grouped = clients
     .filter((c) => reports.some((r) => r.client_id === c.id))
     .map((c) => ({
@@ -24,8 +28,6 @@ export default function ReportsPage() {
         .filter((r) => r.client_id === c.id)
         .sort((a, b) => new Date(b.data_relatorio).getTime() - new Date(a.data_relatorio).getTime()),
     }));
-
-  const weatherLabel = (v: string) => WEATHER_OPTIONS.find((w) => w.value === v)?.label || v;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -39,7 +41,9 @@ export default function ReportsPage() {
         </Button>
       </div>
 
-      {grouped.length === 0 && reports.length === 0 ? (
+      {loading ? (
+        <div className="space-y-4">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-32 w-full" />)}</div>
+      ) : grouped.length === 0 && reports.length === 0 ? (
         <Card className="shadow-sm">
           <CardContent className="py-16 text-center text-muted-foreground">
             <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
@@ -93,7 +97,7 @@ export default function ReportsPage() {
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => { deleteReport(r.id); toast.success("Relatório removido!"); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                              <AlertDialogAction onClick={async () => { await deleteReport.mutateAsync(r.id); toast.success("Relatório removido!"); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>

@@ -1,11 +1,18 @@
-import { useAppStore } from "@/lib/store";
+import { useClients } from "@/hooks/use-clients";
+import { useTools } from "@/hooks/use-tools";
+import { useReports } from "@/hooks/use-reports";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Users, Wrench, FileText, Building2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 export default function Dashboard() {
-  const { clients, tools, reports } = useAppStore();
+  const { data: clients = [], isLoading: lc } = useClients();
+  const { data: tools = [], isLoading: lt } = useTools();
+  const { data: reports = [], isLoading: lr } = useReports();
+
+  const loading = lc || lt || lr;
 
   const activeClients = clients.filter((c) => c.status === "ativa").length;
   const thisMonth = reports.filter((r) => {
@@ -40,7 +47,7 @@ export default function Dashboard() {
               <s.icon className={`h-5 w-5 ${s.color}`} />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold tabular-nums">{s.value}</div>
+              {loading ? <Skeleton className="h-9 w-16" /> : <div className="text-3xl font-bold tabular-nums">{s.value}</div>}
             </CardContent>
           </Card>
         ))}
@@ -51,7 +58,9 @@ export default function Dashboard() {
           <CardTitle className="text-lg">Atividade Recente</CardTitle>
         </CardHeader>
         <CardContent>
-          {recentReports.length === 0 ? (
+          {loading ? (
+            <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+          ) : recentReports.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
               <p className="font-medium">Nenhum relatório criado ainda</p>
@@ -59,22 +68,19 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="space-y-3">
-              {recentReports.map((r) => {
-                const client = clients.find((c) => c.id === r.client_id);
-                return (
-                  <div key={r.id} className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors">
-                    <div className="w-2 h-2 rounded-full bg-baja-orange flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {client?.nome_empreitada || "Obra desconhecida"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {client?.nome_cliente} — {format(new Date(r.data_relatorio), "dd 'de' MMMM", { locale: ptBR })}
-                      </p>
-                    </div>
+              {recentReports.map((r) => (
+                <div key={r.id} className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors">
+                  <div className="w-2 h-2 rounded-full bg-baja-orange flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">
+                      {r.client?.nome_empreitada || "Obra desconhecida"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {r.client?.nome_cliente} — {format(new Date(r.data_relatorio), "dd 'de' MMMM", { locale: ptBR })}
+                    </p>
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           )}
         </CardContent>

@@ -1,23 +1,30 @@
 import { useState, useEffect } from "react";
-import { useAppStore } from "@/lib/store";
+import { useClients } from "@/hooks/use-clients";
+import { useTools } from "@/hooks/use-tools";
+import { useReport, useCreateReport, useUpdateReport, useUploadReportImages } from "@/hooks/use-reports";
 import type { Report } from "@/lib/types";
 import { WEATHER_OPTIONS } from "@/lib/types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Save, ImagePlus, X } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
 export default function ReportFormPage() {
-  const { clients, tools, reports, addReport, updateReport } = useAppStore();
+  const { data: clients = [] } = useClients();
+  const { data: tools = [] } = useTools();
   const navigate = useNavigate();
   const { id } = useParams();
-  const existing = id ? reports.find((r) => r.id === id) : null;
+  const { data: existing, isLoading } = useReport(id);
+  const createReport = useCreateReport();
+  const updateReport = useUpdateReport();
+  const uploadImages = useUploadReportImages();
 
   const [form, setForm] = useState({
     client_id: "",
@@ -29,7 +36,8 @@ export default function ReportFormPage() {
     observacoes: "",
   });
 
-  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [files, setFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
 
   useEffect(() => {
     if (existing) {
@@ -49,43 +57,54 @@ export default function ReportFormPage() {
     setForm((f) => ({
       ...f,
       ferramentas_ids: f.ferramentas_ids.includes(toolId)
-        ? f.ferramentas_ids.filter((id) => id !== toolId)
+        ? f.ferramentas_ids.filter((i) => i !== toolId)
         : [...f.ferramentas_ids, toolId],
     }));
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-    Array.from(files).forEach((file) => {
+    const newFiles = e.target.files;
+    if (!newFiles) return;
+    const arr = Array.from(newFiles);
+    setFiles((prev) => [...prev, ...arr]);
+    arr.forEach((file) => {
       const url = URL.createObjectURL(file);
-      setImageUrls((prev) => [...prev, url]);
+      setPreviews((prev) => [...prev, url]);
     });
   };
 
   const removeImage = (idx: number) => {
-    setImageUrls((prev) => prev.filter((_, i) => i !== idx));
+    setFiles((prev) => prev.filter((_, i) => i !== idx));
+    setPreviews((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.client_id) { toast.error("Selecione uma obra."); return; }
     if (!form.atividades_dia) { toast.error("Descreva as atividades do dia."); return; }
 
-    const now = new Date().toISOString();
-    if (existing) {
-      updateReport(existing.id, form);
-      toast.success("Relatório atualizado!");
-    } else {
-      addReport({
-        ...form,
-        id: crypto.randomUUID(),
-        created_at: now,
-        updated_at: now,
-      } as Report);
-      toast.success("Relatório salvo!");
+    try {
+      if (existing) {
+        await updateReport.mutateAsync({ id: existing.id, ...form });
+        if (files.length > 0) {
+          await uploadImages.mutateAsync({ reportId: existing.id, files });
+        }
+        toast.success("Relatório atualizado!");
+      } else {
+        const created = await createReport.mutateAsync(form);
+        if (files.length > 0 && created) {
+          await uploadImages.mutateAsync({ reportId: (created as any).id, files });
+        }
+        toast.success("Relatório salvo!");
+      }
+      navigate("/relatorios");
+    } catch {
+      toast.error("Erro ao salvar relatório.");
     }
-    navigate("/relatorios");
   };
+
+  if (id && isLoading) {
+    return <div className="space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-96 w-full" /></div>;
+  }
 
   return (
     <div className="space-y-6 animate-fade-in max-w-3xl">
@@ -139,15 +158,12 @@ export default function ReportFormPage() {
           <div className="space-y-2">
             <Label>Ferramentas Utilizadas</Label>
             {tools.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhuma ferramenta cadastrada. Cadastre ferramentas na seção "Ferramentas".</p>
+              <p className="text-sm text-muted-foreground">Nenhuma ferramenta cadastrada.</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-3 border rounded-lg bg-muted/30">
                 {tools.map((t) => (
                   <label key={t.id} className="flex items-center gap-2 cursor-pointer p-1.5 rounded hover:bg-muted transition-colors">
-                    <Checkbox
-                      checked={form.ferramentas_ids.includes(t.id)}
-                      onCheckedChange={() => toggleTool(t.id)}
-                    />
+                    <Checkbox checked={form.ferramentas_ids.includes(t.id)} onCheckedChange={() => toggleTool(t.id)} />
                     <span className="text-sm">{t.nome}</span>
                   </label>
                 ))}
@@ -168,8 +184,13 @@ export default function ReportFormPage() {
           <div className="space-y-2">
             <Label>Registros Fotográficos</Label>
             <div className="flex flex-wrap gap-3">
-              {imageUrls.map((url, i) => (
-                <div key={i} className="relative w-24 h-24 rounded-lg overflow-hidden border group">
+              {existing?.images?.map((img) => (
+                <div key={img.id} className="relative w-24 h-24 rounded-lg overflow-hidden border">
+                  <img src={img.url} alt={img.filename} className="w-full h-full object-cover" />
+                </div>
+              ))}
+              {previews.map((url, i) => (
+                <div key={`new-${i}`} className="relative w-24 h-24 rounded-lg overflow-hidden border group">
                   <img src={url} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" />
                   <button onClick={() => removeImage(i)} className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <X className="h-3 w-3" />
@@ -186,7 +207,7 @@ export default function ReportFormPage() {
 
           <div className="flex justify-end gap-3 pt-4 border-t">
             <Button variant="outline" onClick={() => navigate("/relatorios")}>Cancelar</Button>
-            <Button onClick={handleSave} className="bg-baja-orange hover:bg-baja-orange/90 text-accent-foreground">
+            <Button onClick={handleSave} disabled={createReport.isPending || updateReport.isPending || uploadImages.isPending} className="bg-baja-orange hover:bg-baja-orange/90 text-accent-foreground">
               <Save className="h-4 w-4 mr-2" /> Salvar Relatório
             </Button>
           </div>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAppStore } from "@/lib/store";
+import { useTools, useCreateTool, useUpdateTool, useDeleteTool } from "@/hooks/use-tools";
 import type { Tool } from "@/lib/types";
 import { TOOL_CATEGORIES, TOOL_STATUS } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Search, Pencil, Trash2, Wrench } from "lucide-react";
 import { toast } from "sonner";
 
@@ -19,7 +20,10 @@ const emptyTool: Omit<Tool, "id" | "created_at"> = {
 };
 
 export default function ToolsPage() {
-  const { tools, addTool, updateTool, deleteTool } = useAppStore();
+  const { data: tools = [], isLoading } = useTools();
+  const createTool = useCreateTool();
+  const updateTool = useUpdateTool();
+  const deleteTool = useDeleteTool();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Tool | null>(null);
@@ -32,16 +36,20 @@ export default function ToolsPage() {
   const openNew = () => { setEditing(null); setForm(emptyTool); setDialogOpen(true); };
   const openEdit = (t: Tool) => { setEditing(t); setForm(t); setDialogOpen(true); };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.nome) { toast.error("Preencha o nome da ferramenta."); return; }
-    if (editing) {
-      updateTool(editing.id, form);
-      toast.success("Ferramenta atualizada!");
-    } else {
-      addTool({ ...form, id: crypto.randomUUID(), created_at: new Date().toISOString() } as Tool);
-      toast.success("Ferramenta cadastrada!");
+    try {
+      if (editing) {
+        await updateTool.mutateAsync({ id: editing.id, ...form });
+        toast.success("Ferramenta atualizada!");
+      } else {
+        await createTool.mutateAsync(form);
+        toast.success("Ferramenta cadastrada!");
+      }
+      setDialogOpen(false);
+    } catch {
+      toast.error("Erro ao salvar ferramenta.");
     }
-    setDialogOpen(false);
   };
 
   const statusBadge = (status: string) => {
@@ -68,7 +76,11 @@ export default function ToolsPage() {
         <Input placeholder="Buscar ferramenta..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
       </div>
 
-      {filtered.length === 0 ? (
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-40 w-full" />)}
+        </div>
+      ) : filtered.length === 0 ? (
         <Card className="shadow-sm">
           <CardContent className="py-16 text-center text-muted-foreground">
             <Wrench className="h-12 w-12 mx-auto mb-3 opacity-30" />
@@ -107,7 +119,7 @@ export default function ToolsPage() {
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => { deleteTool(t.id); toast.success("Ferramenta removida!"); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                        <AlertDialogAction onClick={async () => { await deleteTool.mutateAsync(t.id); toast.success("Ferramenta removida!"); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
@@ -159,7 +171,7 @@ export default function ToolsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} className="bg-baja-orange hover:bg-baja-orange/90 text-accent-foreground">
+            <Button onClick={handleSave} disabled={createTool.isPending || updateTool.isPending} className="bg-baja-orange hover:bg-baja-orange/90 text-accent-foreground">
               {editing ? "Salvar" : "Cadastrar"}
             </Button>
           </DialogFooter>

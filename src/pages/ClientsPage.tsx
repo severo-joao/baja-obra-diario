@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { useAppStore } from "@/lib/store";
+import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from "@/hooks/use-clients";
 import type { Client } from "@/lib/types";
 import { CLIENT_STATUS } from "@/lib/types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Search, Pencil, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 
@@ -21,7 +22,10 @@ const emptyClient: Omit<Client, "id" | "created_at" | "updated_at"> = {
 };
 
 export default function ClientsPage() {
-  const { clients, addClient, updateClient, deleteClient } = useAppStore();
+  const { data: clients = [], isLoading } = useClients();
+  const createClient = useCreateClient();
+  const updateClient = useUpdateClient();
+  const deleteClient = useDeleteClient();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Client | null>(null);
@@ -36,25 +40,32 @@ export default function ClientsPage() {
   const openNew = () => { setEditing(null); setForm(emptyClient); setDialogOpen(true); };
   const openEdit = (c: Client) => { setEditing(c); setForm(c); setDialogOpen(true); };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.nome_cliente || !form.nome_empreitada) {
       toast.error("Preencha os campos obrigatórios.");
       return;
     }
-    const now = new Date().toISOString();
-    if (editing) {
-      updateClient(editing.id, form);
-      toast.success("Cliente atualizado com sucesso!");
-    } else {
-      addClient({ ...form, id: crypto.randomUUID(), created_at: now, updated_at: now } as Client);
-      toast.success("Cliente cadastrado com sucesso!");
+    try {
+      if (editing) {
+        await updateClient.mutateAsync({ id: editing.id, ...form });
+        toast.success("Cliente atualizado com sucesso!");
+      } else {
+        await createClient.mutateAsync(form);
+        toast.success("Cliente cadastrado com sucesso!");
+      }
+      setDialogOpen(false);
+    } catch {
+      toast.error("Erro ao salvar cliente.");
     }
-    setDialogOpen(false);
   };
 
-  const handleDelete = (id: string) => {
-    deleteClient(id);
-    toast.success("Cliente removido com sucesso!");
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteClient.mutateAsync(id);
+      toast.success("Cliente removido com sucesso!");
+    } catch {
+      toast.error("Erro ao remover cliente.");
+    }
   };
 
   const statusBadge = (status: string) => {
@@ -79,7 +90,9 @@ export default function ClientsPage() {
         <Input placeholder="Buscar por nome, obra ou CPF/CNPJ..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
       </div>
 
-      {filtered.length === 0 ? (
+      {isLoading ? (
+        <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+      ) : filtered.length === 0 ? (
         <Card className="shadow-sm">
           <CardContent className="py-16 text-center text-muted-foreground">
             <Users className="h-12 w-12 mx-auto mb-3 opacity-30" />
@@ -200,7 +213,7 @@ export default function ClientsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} className="bg-baja-orange hover:bg-baja-orange/90 text-accent-foreground">
+            <Button onClick={handleSave} disabled={createClient.isPending || updateClient.isPending} className="bg-baja-orange hover:bg-baja-orange/90 text-accent-foreground">
               {editing ? "Salvar Alterações" : "Cadastrar Cliente"}
             </Button>
           </DialogFooter>
