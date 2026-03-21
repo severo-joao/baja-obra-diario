@@ -1,50 +1,57 @@
 
 
-## Plan: Migrate from Zustand/localStorage to Lovable Cloud Database
+## Plano: Reestruturar Relatórios para modelo "1 Relatório por Obra + Relatos Diários"
 
-### Overview
-Create database tables for all entities (clients, tools, reports, report_images, webhooks, webhook_logs), add a storage bucket for report images, create React Query hooks for data fetching/mutation, and update all pages to use the database instead of the Zustand store.
+### Problema Atual
+Hoje cada entrada diária é um `report` independente. O usuário quer que cada obra tenha **um único relatório** que funciona como um diário, onde se adicionam **relatos diários** (entries). As imagens de cada relato devem aparecer inline no relatório.
 
-### Step 1: Database Migration
-Create all tables with appropriate columns and RLS policies (public access since no auth yet):
+### Mudanças no Banco de Dados
 
-- **clients** — all fields from the Client type, with `id uuid` primary key, timestamps with defaults
-- **tools** — all fields from Tool type
-- **reports** — all fields from Report type, `ferramentas_ids text[]`, foreign key to clients
-- **report_images** — foreign key to reports, url, filename
-- **webhooks** — event_type, url, active boolean
-- **webhook_logs** — foreign key to webhooks, event_type, status_code, payload, timestamp
+Criar tabela `report_entries` para os relatos diários:
 
-RLS policies: Allow all operations (SELECT, INSERT, UPDATE, DELETE) for anon role since there is no authentication yet. This keeps the app functional; auth can be added later to restrict access.
+```text
+report_entries
+├── id (uuid, PK)
+├── report_id (uuid, FK → reports)
+├── data_relato (text, data do relato)
+├── equipe (text)
+├── condicoes_climaticas (text)
+├── ferramentas_ids (text[])
+├── atividades_dia (text)
+├── observacoes (text)
+├── created_at (timestamptz)
+```
 
-### Step 2: Storage Bucket
-Create a public `report-images` storage bucket with RLS policies allowing uploads and reads for anon users.
+Mover `report_images.report_id` para referenciar `report_entries` via nova coluna `entry_id`:
+- Adicionar coluna `entry_id uuid` na tabela `report_images`
+- Imagens ficam vinculadas ao relato específico, não ao relatório geral
 
-### Step 3: React Query Hooks
-Create `src/hooks/use-clients.ts`, `use-tools.ts`, `use-reports.ts`, `use-webhooks.ts` with:
-- `useQuery` for fetching data from each table
-- `useMutation` for create, update, delete operations with cache invalidation
-- Reports hook will join client data and report_images
+A tabela `reports` fica simplificada — um registro por obra:
+- `id`, `client_id`, `created_at`, `updated_at`
+- Remover campos de dados diários (equipe, clima, etc.) que migram para `report_entries`
 
-### Step 4: Update All Pages
-Replace `useAppStore()` calls with the new React Query hooks in:
-- **Dashboard** — use query hooks for clients, tools, reports counts
-- **ClientsPage** — CRUD via mutations
-- **ToolsPage** — CRUD via mutations
-- **ReportsPage** — fetch reports with client joins
-- **ReportFormPage** — save report + upload images to storage bucket
-- **ReportViewerPage** — fetch single report with images
-- **ExportPage** — fetch filtered reports
-- **DocumentationPage** — webhooks CRUD
+### Mudanças nas Páginas
 
-### Step 5: Cleanup
-- Remove or simplify `src/lib/store.ts` (no longer needed for core data)
-- Add loading skeletons to pages while data loads
+1. **ReportsPage** — Cada obra mostra seu relatório único. Ao clicar, abre o relatório com a lista de relatos. Botão "+ Novo Relato" adiciona uma entrada ao relatório existente (ou cria o relatório automaticamente se não existir).
 
-### Technical Details
-- Tables use `uuid` primary keys with `gen_random_uuid()` defaults
-- Timestamps use `timestamptz` with `now()` defaults
-- `ferramentas_ids` stored as `text[]` on reports table
-- Images uploaded to `report-images` bucket, public URLs stored in `report_images` table
-- All queries use the existing `@/integrations/supabase/client` import
+2. **ReportFormPage** — Formulário agora cria/edita um `report_entry`. Se a obra ainda não tem relatório, cria o relatório e a primeira entrada juntos. Upload de imagens vinculado ao `entry_id`.
+
+3. **ReportViewerPage** — Exibe o relatório completo da obra com todos os relatos em sequência cronológica. Cada relato mostra seus dados (data, equipe, clima, atividades, observações) e **suas imagens inline** logo abaixo.
+
+4. **ExportPage** — Filtra por obra e período, renderiza os relatos do período com imagens embutidas em cada seção.
+
+5. **Dashboard** — Conta relatórios (obras com diário) e relatos do mês.
+
+### Hooks Atualizados
+
+- `use-reports.ts` — Refatorar para buscar relatórios com entries e images nested. Adicionar `useCreateEntry`, `useUpdateEntry`, `useDeleteEntry`.
+
+### Resumo do Fluxo
+
+```text
+Obra (client) → 1 Relatório (report) → N Relatos (report_entries)
+                                          └── N Imagens (report_images)
+```
+
+O usuário vai à página de Relatórios, vê as obras, clica em uma obra para ver o diário completo, e adiciona novos relatos diários com fotos que aparecem integradas no documento.
 
