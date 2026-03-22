@@ -175,6 +175,12 @@
       overflow: hidden;
     }
 
+    #print-area .a4-page img {
+      max-width: 100% !important;
+      max-height: 200px !important;
+      object-fit: contain !important;
+    }
+
     #print-area .a4-page:last-child {
       page-break-after: auto;
     }

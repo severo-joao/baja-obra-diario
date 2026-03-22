@@ -46,7 +46,7 @@ export default function A4ReportPage({ children, pageNumber, totalPages }: A4Rep
       </div>
 
       {/* CONTENT */}
-      <div className="relative z-10" style={{ paddingLeft: 24, minHeight: "calc(1123px - 32px - 32px - 86px - 140px)" }}>
+      <div className="relative z-10" style={{ paddingLeft: 24, minHeight: "calc(1123px - 32px - 32px - 86px - 140px)", overflow: "hidden" }}>
         {children}
       </div>
 

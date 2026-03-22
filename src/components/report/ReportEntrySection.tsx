@@ -103,7 +103,8 @@ export default function ReportEntrySection({ entry, index, clientName, obraName,
                   alt={img.filename}
                   className="w-full object-contain"
                   style={{
-                    maxHeight: entry.images!.length === 1 ? 460 : 280,
+                    maxHeight: entry.images!.length === 1 ? 340 : 200,
+                    maxWidth: "100%",
                   }}
                 />
                 <p className="text-center py-1" style={{ fontSize: 9, color: "#9CA3AF" }}>
