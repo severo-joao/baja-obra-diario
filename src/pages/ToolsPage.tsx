@@ -22,6 +22,7 @@ const emptyTool: Omit<Tool, "id" | "created_at"> = {
 
 export default function ToolsPage() {
   const { data: tools = [], isLoading } = useTools();
+  const { data: clients = [] } = useClients();
   const createTool = useCreateTool();
   const updateTool = useUpdateTool();
   const deleteTool = useDeleteTool();
