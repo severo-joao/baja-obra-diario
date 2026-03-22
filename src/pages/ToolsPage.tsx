@@ -164,13 +164,26 @@ export default function ToolsPage() {
             </div>
             <div className="space-y-2">
               <Label>Status</Label>
-              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as Tool["status"] })}>
+              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as Tool["status"], client_id: v === 'em_uso' ? form.client_id : null })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {TOOL_STATUS.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
+            {form.status === 'em_uso' && (
+              <div className="space-y-2">
+                <Label>Obra *</Label>
+                <Select value={form.client_id || ""} onValueChange={(v) => setForm({ ...form, client_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione a obra" /></SelectTrigger>
+                  <SelectContent>
+                    {clients.filter((c) => c.status === 'ativa').map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.nome_empreitada}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Descrição</Label>
               <Textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} rows={3} />
