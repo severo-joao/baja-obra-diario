@@ -1,30 +1,36 @@
 
 
-## Plano: Campo de obra condicional ao status "Em uso"
+## Plano: Implementar autenticação com login e senha
 
-### O que muda
-
-Quando o usuário selecionar status **"Em uso"** no formulário de cadastro/edição de ferramenta, um campo Select aparece para escolher a obra (cliente) na qual a ferramenta está sendo usada. Para outros status, o campo fica oculto.
+### O que será feito
+Adicionar tela de login/cadastro com email e senha. Todas as rotas ficam protegidas — só acessíveis após autenticação.
 
 ### Alterações
 
-**1. Migração de banco — adicionar coluna `client_id` na tabela `tools`**
-- `ALTER TABLE tools ADD COLUMN client_id uuid DEFAULT NULL;`
-- Nullable, sem foreign key para `auth.users` (é referência a `clients`)
+**1. Criar `src/pages/AuthPage.tsx`**
+- Formulário com abas Login / Cadastro
+- Campos: email e senha
+- Usa `supabase.auth.signInWithPassword()` e `supabase.auth.signUp()`
+- Feedback de erro com toast
+- Após cadastro, informar que é necessário confirmar email
 
-**2. `src/lib/types.ts`** — adicionar `client_id?: string | null` à interface `Tool`
+**2. Criar `src/hooks/useAuth.ts`**
+- Hook que escuta `onAuthStateChange` e expõe `session`, `user`, `loading`, `signOut`
+- `getSession()` chamado após o listener (conforme boas práticas)
 
-**3. `src/pages/ToolsPage.tsx`**
-- Importar `useClients` para obter lista de obras
-- No formulário (Dialog), após o Select de Status: renderizar condicionalmente (quando `form.status === 'em_uso'`) um Select com as obras ativas
-- Adicionar `client_id: null` ao `emptyTool`
-- Quando status mudar para algo diferente de `em_uso`, limpar `client_id`
-- No card da ferramenta, mostrar o nome da obra quando status for "em_uso"
+**3. Atualizar `src/App.tsx`**
+- Envolver rotas com verificação de sessão
+- Se não autenticado → redirecionar para `/auth`
+- Rota `/auth` pública (fora do `AppLayout`)
+- Adicionar botão de logout no header ou sidebar
 
-**4. `src/hooks/use-tools.ts`** — sem mudanças necessárias (já usa `select("*")` e tipos parciais)
+**4. Atualizar `src/components/layout/AppLayout.tsx` ou `AppSidebar.tsx`**
+- Adicionar botão "Sair" no footer da sidebar
+- Chamar `supabase.auth.signOut()` ao clicar
 
-### Resultado
-- Status "Em uso" exige seleção de obra
-- Status "Disponível" ou "Manutenção" não mostra o campo
-- A obra associada aparece no card da ferramenta
+### Detalhes técnicos
+- Sem tabela de perfis (apenas `auth.users`)
+- Email precisa ser confirmado antes do login (comportamento padrão)
+- Sem auto-confirm de email
+- RLS das tabelas existentes já permite acesso público — sem impacto na autenticação
 
