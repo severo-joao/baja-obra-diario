@@ -80,7 +80,7 @@ export default function ExportPage() {
       </Card>
 
       {!loading && filteredEntries.length === 0 ? (
-        <Card className="shadow-sm">
+        <Card className="shadow-sm no-print">
           <CardContent className="py-16 text-center text-muted-foreground">
             <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
             <p className="font-medium">Nenhum relato encontrado</p>

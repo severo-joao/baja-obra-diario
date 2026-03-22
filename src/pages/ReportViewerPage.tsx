@@ -44,7 +44,7 @@ export default function ReportViewerPage() {
       </div>
 
       {entries.length === 0 ? (
-        <div className="text-center py-20 text-muted-foreground">
+        <div className="text-center py-20 text-muted-foreground no-print">
           <p>Nenhum relato registrado.</p>
         </div>
       ) : (
