@@ -42,6 +42,27 @@ export default function SetPasswordPage() {
     };
   }, []);
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password.length < 6) {
+      toast({ title: "Senha muito curta", description: "Mínimo 6 caracteres.", variant: "destructive" });
+      return;
+    }
+    if (password !== confirmPassword) {
+      toast({ title: "Senhas não conferem", variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.updateUser({ password });
+    setLoading(false);
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Senha definida com sucesso!" });
+      navigate("/");
+    }
+  };
+
   if (expired && !ready) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
