@@ -1,53 +1,25 @@
 
 
-## Plano: Sistema de convites por email (registro apenas por convite)
+## Problema
 
-### Resumo
-Remover o cadastro público da tela de login. Criar uma área em Configurações onde o usuário logado pode convidar novos usuários por email. O convite usa a API `auth.admin.inviteUserByEmail` do backend, que envia um email com link para o novo usuário definir sua senha.
+A `SetPasswordPage` depende exclusivamente do evento `PASSWORD_RECOVERY` do `onAuthStateChange`. Esse evento é disparado pelo Supabase client quando ele processa os tokens do hash da URL. O problema é uma condição de corrida: o Supabase client (inicializado em `client.ts`) pode processar o hash e disparar o evento **antes** do `useEffect` da `SetPasswordPage` registrar o listener. Quando isso acontece, o evento é perdido e a página fica presa no "Verificando convite..." para sempre.
 
-### Alterações
+Além disso, o `useAuth` hook no `App.tsx` também escuta `onAuthStateChange` e pode consumir o evento antes.
 
-**1. Edge Function `invite-user`**
-- Recebe `{ email }` no body
-- Valida que o chamador está autenticado (verifica JWT)
-- Usa `supabase.auth.admin.inviteUserByEmail(email, { redirectTo })` com service role key
-- Retorna sucesso ou erro
+## Solução
 
-**2. Tabela `invites` (migração)**
-- Colunas: `id`, `email`, `invited_by` (uuid), `created_at`, `status` (pending/accepted)
-- RLS: apenas usuários autenticados podem ler e inserir
-- Serve como histórico de convites enviados
+Alterar `SetPasswordPage` para não depender apenas do evento. Adicionar uma verificação de sessão existente no `useEffect`:
 
-**3. `src/pages/AuthPage.tsx`**
-- Remover a aba "Cadastrar" — manter apenas o formulário de login
-- Remover o `handleSignUp` e componentes relacionados
+1. Manter o listener de `PASSWORD_RECOVERY` (funciona quando o timing é favorável)
+2. Adicionar `supabase.auth.getSession()` — se já existe sessão ativa (o token do hash já foi processado), marcar como `ready`
+3. Adicionar um timeout de segurança (~5s) para mostrar mensagem de erro caso nem o evento nem a sessão estejam disponíveis (link expirado, por exemplo)
 
-**4. `src/pages/SettingsPage.tsx`**
-- Substituir o placeholder por um formulário funcional:
-  - Campo de email + botão "Enviar Convite"
-  - Chama a edge function `invite-user`
-  - Lista de convites enviados (da tabela `invites`) com status
-  - Toast de sucesso/erro
+### Alteração: `src/pages/SetPasswordPage.tsx`
 
-**5. `src/App.tsx`**
-- Nenhuma mudança de rotas necessária (Settings já existe)
+No `useEffect`:
+- Chamar `supabase.auth.getSession()` e se houver sessão, setar `ready = true`
+- Manter o listener para `PASSWORD_RECOVERY` e também `SIGNED_IN` como fallback
+- Adicionar timeout de 5 segundos para exibir mensagem de link expirado/inválido em vez de loading infinito
 
-### Fluxo
-1. Admin logado vai em Configurações → digita email → clica "Enviar Convite"
-2. Edge function cria o usuário via `inviteUserByEmail` e registra na tabela `invites`
-3. Novo usuário recebe email com link → clica → define senha
-4. Novo usuário faz login normalmente na tela de login
-
-### Detalhes técnicos
-- `inviteUserByEmail` requer service role key (por isso precisa de edge function)
-- O email de convite é enviado automaticamente pelo sistema de autenticação
-- O link do convite redireciona para a aplicação onde o usuário pode definir sua senha
-- Será necessário criar uma página `/set-password` para o usuário convidado definir sua senha após clicar no link
-
-### Arquivos
-- `supabase/functions/invite-user/index.ts` (criar)
-- `src/pages/AuthPage.tsx` (simplificar — só login)
-- `src/pages/SettingsPage.tsx` (formulário de convites)
-- `src/hooks/use-invites.ts` (criar — CRUD da tabela invites)
-- Migração SQL para tabela `invites`
+Arquivo único, mudança pontual.
 
