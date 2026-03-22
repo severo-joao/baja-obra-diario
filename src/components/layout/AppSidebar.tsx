@@ -6,6 +6,7 @@ import {
   Download,
   BookOpen,
   Settings,
+  LogOut,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -32,7 +33,12 @@ const navItems = [
   { title: "Configurações", url: "/configuracoes", icon: Settings },
 ];
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  onSignOut?: () => void;
+  userEmail?: string;
+}
+
+export function AppSidebar({ onSignOut, userEmail }: AppSidebarProps) {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
@@ -87,7 +93,22 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-3 border-t border-sidebar-border">
-        {!collapsed && (
+        {!collapsed && userEmail && (
+          <p className="text-[10px] text-sidebar-foreground/60 text-center truncate mb-1">
+            {userEmail}
+          </p>
+        )}
+        {onSignOut && (
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton onClick={onSignOut} tooltip="Sair">
+                <LogOut className="h-4 w-4 flex-shrink-0" />
+                {!collapsed && <span>Sair</span>}
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        )}
+        {!collapsed && !onSignOut && (
           <p className="text-[10px] text-sidebar-foreground/40 text-center">
             Diário de Obras v1.0
           </p>
