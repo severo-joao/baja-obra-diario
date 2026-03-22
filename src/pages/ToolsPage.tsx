@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTools, useCreateTool, useUpdateTool, useDeleteTool } from "@/hooks/use-tools";
+import { useClients } from "@/hooks/use-clients";
 import type { Tool } from "@/lib/types";
 import { TOOL_CATEGORIES, TOOL_STATUS } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,11 +17,12 @@ import { Plus, Search, Pencil, Trash2, Wrench } from "lucide-react";
 import { toast } from "sonner";
 
 const emptyTool: Omit<Tool, "id" | "created_at"> = {
-  nome: "", codigo_patrimonio: "", categoria: "manual", descricao: "", status: "disponivel",
+  nome: "", codigo_patrimonio: "", categoria: "manual", descricao: "", status: "disponivel", client_id: null,
 };
 
 export default function ToolsPage() {
   const { data: tools = [], isLoading } = useTools();
+  const { data: clients = [] } = useClients();
   const createTool = useCreateTool();
   const updateTool = useUpdateTool();
   const deleteTool = useDeleteTool();
@@ -100,6 +102,11 @@ export default function ToolsPage() {
                   </div>
                   {statusBadge(t.status)}
                 </div>
+                {t.status === 'em_uso' && t.client_id && (
+                  <p className="text-xs text-muted-foreground mb-1">
+                    📍 {clients.find((c) => c.id === t.client_id)?.nome_empreitada || "Obra não encontrada"}
+                  </p>
+                )}
                 <Badge variant="outline" className="mb-2 text-xs">{catLabel(t.categoria)}</Badge>
                 {t.descricao && <p className="text-sm text-muted-foreground line-clamp-2 mt-2">{t.descricao}</p>}
                 <div className="flex justify-end gap-1 mt-3 pt-3 border-t">
@@ -157,13 +164,26 @@ export default function ToolsPage() {
             </div>
             <div className="space-y-2">
               <Label>Status</Label>
-              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as Tool["status"] })}>
+              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as Tool["status"], client_id: v === 'em_uso' ? form.client_id : null })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {TOOL_STATUS.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
+            {form.status === 'em_uso' && (
+              <div className="space-y-2">
+                <Label>Obra *</Label>
+                <Select value={form.client_id || ""} onValueChange={(v) => setForm({ ...form, client_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione a obra" /></SelectTrigger>
+                  <SelectContent>
+                    {clients.filter((c) => c.status === 'ativa').map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.nome_empreitada}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Descrição</Label>
               <Textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} rows={3} />

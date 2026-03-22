@@ -1,0 +1,1 @@
+ALTER TABLE tools ADD COLUMN client_id uuid DEFAULT NULL;

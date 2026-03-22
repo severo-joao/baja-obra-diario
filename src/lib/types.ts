@@ -21,6 +21,7 @@ export interface Tool {
   categoria: 'eletrica' | 'manual' | 'pesada' | 'medicao' | 'seguranca' | 'outro';
   descricao: string;
   status: 'disponivel' | 'em_uso' | 'manutencao';
+  client_id?: string | null;
   created_at: string;
 }
 
