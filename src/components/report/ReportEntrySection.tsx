@@ -97,7 +97,7 @@ export default function ReportEntrySection({ entry, index, clientName, obraName,
               : "grid grid-cols-2 gap-3"
           }>
             {entry.images.map((img) => (
-              <div key={img.id} className="border rounded overflow-hidden" style={{ borderColor: "#E5E7EB" }}>
+              <div key={img.id} className="rounded overflow-hidden">
                 <img
                   src={img.url}
                   alt={img.filename}
@@ -107,9 +107,6 @@ export default function ReportEntrySection({ entry, index, clientName, obraName,
                     maxWidth: "100%",
                   }}
                 />
-                <p className="text-center py-1" style={{ fontSize: 9, color: "#9CA3AF" }}>
-                  {img.filename}
-                </p>
               </div>
             ))}
           </div>
