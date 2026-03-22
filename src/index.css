@@ -120,7 +120,7 @@
       margin: 0;
     }
 
-    /* Hide everything that is not print content */
+    /* Hide UI chrome */
     .no-print,
     header,
     nav,
@@ -129,7 +129,7 @@
       display: none !important;
     }
 
-    /* Reset the entire app shell so #print-area can take over */
+    /* Reset body and root */
     body,
     #root {
       background: white !important;
@@ -138,17 +138,23 @@
       width: 100% !important;
       min-height: 0 !important;
       overflow: visible !important;
+      display: block !important;
     }
 
-    /* Strip layout wrappers — flex, padding, gaps, shadows */
-    #root > *,
-    #root > * > *,
-    #root > * > * > *,
-    #root > * > * > * > * {
-      display: contents !important;
+    /* Strip all ancestors of #print-area (up to 8 levels deep) */
+    *:has(#print-area) {
+      display: block !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      overflow: visible !important;
+      min-height: 0 !important;
+      border: none !important;
+      gap: 0 !important;
+      box-shadow: none !important;
+      background: transparent !important;
     }
 
-    /* But #print-area itself must be a real block */
+    /* #print-area itself */
     #print-area {
       display: block !important;
       width: 100% !important;
@@ -156,7 +162,7 @@
       margin: 0 !important;
     }
 
-    /* Hide siblings of #print-area that leaked through display:contents */
+    /* Hide siblings of #print-area */
     #print-area ~ *:not(#print-area) {
       display: none !important;
     }
@@ -186,7 +192,6 @@
     }
 
     /* Ensure inner content of A4 pages renders normally */
-    #print-area .a4-page,
     #print-area .a4-page * {
       display: revert !important;
     }
