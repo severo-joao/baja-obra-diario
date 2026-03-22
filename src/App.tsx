@@ -15,6 +15,7 @@ import ExportPage from "./pages/ExportPage";
 import DocumentationPage from "./pages/DocumentationPage";
 import SettingsPage from "./pages/SettingsPage";
 import AuthPage from "./pages/AuthPage";
+import SetPasswordPage from "./pages/SetPasswordPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
