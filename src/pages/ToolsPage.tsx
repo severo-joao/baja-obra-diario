@@ -102,6 +102,11 @@ export default function ToolsPage() {
                   </div>
                   {statusBadge(t.status)}
                 </div>
+                {t.status === 'em_uso' && t.client_id && (
+                  <p className="text-xs text-muted-foreground mb-1">
+                    📍 {clients.find((c) => c.id === t.client_id)?.nome_empreitada || "Obra não encontrada"}
+                  </p>
+                )}
                 <Badge variant="outline" className="mb-2 text-xs">{catLabel(t.categoria)}</Badge>
                 {t.descricao && <p className="text-sm text-muted-foreground line-clamp-2 mt-2">{t.descricao}</p>}
                 <div className="flex justify-end gap-1 mt-3 pt-3 border-t">
