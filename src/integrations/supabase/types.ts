@@ -180,6 +180,7 @@ export type Database = {
       tools: {
         Row: {
           categoria: string
+          client_id: string | null
           codigo_patrimonio: string
           created_at: string
           descricao: string
@@ -189,6 +190,7 @@ export type Database = {
         }
         Insert: {
           categoria?: string
+          client_id?: string | null
           codigo_patrimonio?: string
           created_at?: string
           descricao?: string
@@ -198,6 +200,7 @@ export type Database = {
         }
         Update: {
           categoria?: string
+          client_id?: string | null
           codigo_patrimonio?: string
           created_at?: string
           descricao?: string

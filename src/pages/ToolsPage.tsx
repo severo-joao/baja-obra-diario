@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTools, useCreateTool, useUpdateTool, useDeleteTool } from "@/hooks/use-tools";
+import { useClients } from "@/hooks/use-clients";
 import type { Tool } from "@/lib/types";
 import { TOOL_CATEGORIES, TOOL_STATUS } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,7 +17,7 @@ import { Plus, Search, Pencil, Trash2, Wrench } from "lucide-react";
 import { toast } from "sonner";
 
 const emptyTool: Omit<Tool, "id" | "created_at"> = {
-  nome: "", codigo_patrimonio: "", categoria: "manual", descricao: "", status: "disponivel",
+  nome: "", codigo_patrimonio: "", categoria: "manual", descricao: "", status: "disponivel", client_id: null,
 };
 
 export default function ToolsPage() {
