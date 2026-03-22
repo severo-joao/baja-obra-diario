@@ -12,38 +12,50 @@ export default function SetPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
+  const [expired, setExpired] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Listen for PASSWORD_RECOVERY event from the invite link
+    let timeout: ReturnType<typeof setTimeout>;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") {
+      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
         setReady(true);
       }
     });
-    return () => subscription.unsubscribe();
+
+    // Check if session already exists (hash already processed)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setReady(true);
+      } else {
+        // Timeout fallback for expired/invalid links
+        timeout = setTimeout(() => {
+          setExpired(true);
+        }, 5000);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (password.length < 6) {
-      toast({ title: "Senha muito curta", description: "Mínimo 6 caracteres.", variant: "destructive" });
-      return;
-    }
-    if (password !== confirmPassword) {
-      toast({ title: "Senhas não conferem", variant: "destructive" });
-      return;
-    }
-    setLoading(true);
-    const { error } = await supabase.auth.updateUser({ password });
-    setLoading(false);
-    if (error) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Senha definida com sucesso!" });
-      navigate("/");
-    }
-  };
+  if (expired && !ready) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="w-full max-w-sm space-y-6 text-center">
+          <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center mx-auto">
+            <span className="text-primary-foreground font-extrabold text-lg">B</span>
+          </div>
+          <p className="text-destructive text-sm font-medium">Link expirado ou inválido.</p>
+          <p className="text-muted-foreground text-sm">Solicite um novo link de recuperação de senha.</p>
+          <Button variant="outline" onClick={() => navigate("/auth")}>Voltar ao login</Button>
+        </div>
+      </div>
+    );
+  }
 
   if (!ready) {
     return (
@@ -52,7 +64,7 @@ export default function SetPasswordPage() {
           <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center mx-auto">
             <span className="text-primary-foreground font-extrabold text-lg">B</span>
           </div>
-          <p className="text-muted-foreground text-sm">Verificando convite...</p>
+          <p className="text-muted-foreground text-sm">Verificando link...</p>
           <Loader2 className="animate-spin mx-auto text-muted-foreground" />
         </div>
       </div>
