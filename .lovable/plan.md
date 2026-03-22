@@ -1,30 +1,29 @@
 
-Objetivo: impedir que o cabeçalho da tela de exportação (“Exportar Relatório / Selecione a obra...”) entre na primeira página do PDF e deixar a impressão limitada apenas ao conteúdo A4.
 
-1. Ajustar a estrutura da `ExportPage`
-- Marcar o bloco do título da página como `no-print`
-- Garantir que o card de filtros e botão continue `no-print`
-- Manter somente o `#print-area` como conteúdo imprimível
-- Se necessário, também marcar o estado vazio (“Nenhum relato encontrado”) como `no-print`, para ele nunca competir com a impressão
+## Plano: Conter imagens dentro da página A4 na exportação
 
-2. Reforçar o isolamento da impressão no CSS
-- Atualizar o `@media print` em `src/index.css` para tratar `#print-area` como a única região visível da página impressa
-- Remover qualquer influência visual do container da tela (margens, paddings, gaps, overflow)
-- Garantir que cada `.a4-page` continue ocupando exatamente uma folha A4
+### Problema
+As imagens dos registros fotográficos estão ultrapassando os limites da página A4 durante a exportação PDF. Isso acontece porque:
 
-3. Revisar o `ReportViewerPage` pelo mesmo padrão
-- Confirmar que toolbar e cabeçalho já estão fora da impressão
-- Aplicar a mesma lógica estrutural para evitar regressões entre “visualizar” e “exportar”
+1. O `maxHeight` das imagens (460px / 280px) pode exceder o espaço disponível na página
+2. O conteúdo da página A4 tem `overflow: hidden` no print, mas as imagens são grandes demais e ficam cortadas ou vazam
+3. Não há limitação relativa ao espaço real disponível dentro da área de conteúdo
 
-4. Resultado esperado
-- O PDF não mostrará mais o texto da interface da tela
-- A primeira página começará diretamente no relatório A4
-- Apenas as páginas do relatório serão exportadas
+### Correções
 
-Arquivos a ajustar:
-- `src/pages/ExportPage.tsx`
-- `src/index.css`
-- `src/pages/ReportViewerPage.tsx` (revisão de consistência)
+**1. `src/components/report/ReportEntrySection.tsx`**
+- Reduzir o `maxHeight` das imagens para valores mais seguros que caibam dentro do espaço disponível na página A4
+- Imagem única: reduzir de 460px para ~340px
+- Múltiplas imagens (grid 2 colunas): reduzir de 280px para ~200px
+- Adicionar `max-width: 100%` e `object-fit: contain` explicitamente para garantir que nenhuma imagem ultrapasse horizontalmente
 
-Detalhe técnico
-Hoje o problema não é mais página em branco; agora é vazamento de elementos da interface para o print. A causa visível é que o bloco de título em `ExportPage.tsx` não está com `no-print`, então ele continua sendo renderizado antes do `#print-area` quando o navegador monta a impressão.
+**2. `src/index.css`** — Adicionar regra de print para imagens:
+- Forçar `img` dentro de `.a4-page` a respeitar `max-width: 100%` e `max-height` seguro no contexto de impressão
+- Garantir que o container de fotos não force overflow
+
+**3. `src/components/report/A4ReportPage.tsx`**
+- Alterar o container de conteúdo para usar `overflow: hidden` visualmente, evitando vazamento no preview e no print
+
+### Resultado
+Imagens ficam contidas dentro dos limites da página A4 tanto no preview quanto na exportação PDF.
+
