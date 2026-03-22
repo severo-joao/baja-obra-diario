@@ -120,20 +120,28 @@
       margin: 0;
     }
 
-    body * {
-      visibility: hidden;
+    /* Hide everything */
+    body > * {
+      display: none !important;
     }
 
-    .a4-page,
-    .a4-page * {
-      visibility: visible;
+    /* Show only the print area */
+    #print-area {
+      display: block !important;
+      position: static;
     }
 
-    .a4-page {
-      box-shadow: none;
-      margin: 0;
-      page-break-after: always;
+    #print-area .a4-page {
+      display: block !important;
       position: relative;
+      width: 210mm;
+      height: 297mm;
+      margin: 0;
+      padding: 32px;
+      box-shadow: none;
+      page-break-after: always;
+      page-break-inside: avoid;
+      overflow: hidden;
     }
 
     .no-print {

@@ -88,7 +88,7 @@ export default function ExportPage() {
           </CardContent>
         </Card>
       ) : filteredEntries.length > 0 && client && (
-        <div className="flex flex-col items-center gap-8">
+        <div id="print-area" className="flex flex-col items-center gap-8">
           {filteredEntries.map((entry, idx) => (
             <A4ReportPage key={entry.id} pageNumber={idx + 1} totalPages={filteredEntries.length}>
               <ReportEntrySection

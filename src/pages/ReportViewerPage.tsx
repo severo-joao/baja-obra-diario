@@ -43,13 +43,13 @@ export default function ReportViewerPage() {
         </Button>
       </div>
 
-      <div className="flex flex-col items-center gap-8">
-        {entries.length === 0 ? (
-          <div className="text-center py-20 text-muted-foreground">
-            <p>Nenhum relato registrado.</p>
-          </div>
-        ) : (
-          entries.map((entry, idx) => (
+      {entries.length === 0 ? (
+        <div className="text-center py-20 text-muted-foreground">
+          <p>Nenhum relato registrado.</p>
+        </div>
+      ) : (
+        <div id="print-area" className="flex flex-col items-center gap-8">
+          {entries.map((entry, idx) => (
             <A4ReportPage key={entry.id} pageNumber={idx + 1} totalPages={entries.length}>
               <ReportEntrySection
                 entry={entry}
@@ -59,9 +59,9 @@ export default function ReportViewerPage() {
                 tools={tools}
               />
             </A4ReportPage>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
