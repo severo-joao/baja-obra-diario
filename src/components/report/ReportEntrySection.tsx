@@ -91,14 +91,20 @@ export default function ReportEntrySection({ entry, index, clientName, obraName,
       {/* Fotos */}
       {entry.images && entry.images.length > 0 && (
         <SectionBlock title="Registros Fotográficos">
-          <div className="grid grid-cols-2 gap-3">
+          <div className={
+            entry.images.length === 1
+              ? "flex justify-center"
+              : "grid grid-cols-2 gap-3"
+          }>
             {entry.images.map((img) => (
               <div key={img.id} className="border rounded overflow-hidden" style={{ borderColor: "#E5E7EB" }}>
                 <img
                   src={img.url}
                   alt={img.filename}
-                  className="w-full object-cover"
-                  style={{ maxHeight: 200 }}
+                  className="w-full object-contain"
+                  style={{
+                    maxHeight: entry.images!.length === 1 ? 460 : 280,
+                  }}
                 />
                 <p className="text-center py-1" style={{ fontSize: 9, color: "#9CA3AF" }}>
                   {img.filename}
