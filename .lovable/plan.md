@@ -1,36 +1,24 @@
 
 
-## Plano: Link externo público para funcionários cadastrarem relatos
+## Plano: Corrigir erro ao salvar relato com fotos pelo link externo
 
-### Resumo
-Criar uma rota pública `/relato-externo` (sem necessidade de login) onde o funcionário de obra:
-1. Vê a lista de obras (clientes) com status "ativa"
-2. Seleciona a obra
-3. Preenche o formulário de relato (mesmo formato atual)
-4. Após salvar, vê uma tela de sucesso com opção "Criar novo relato"
-
-O link compartilhável será: `https://baja-obra-diario.lovable.app/relato-externo`
+### Problema
+O `catch` em `handleSave` engole o erro real sem logar, tornando impossível diagnosticar. O upload de imagens funciona no preview mas pode falhar na URL publicada por problemas de CORS ou tamanho de arquivo. Além disso, o `handleSave` não exibe detalhes do erro.
 
 ### Alterações
 
-**1. Criar `src/pages/ExternalReportPage.tsx`**
-- Página pública, sem sidebar/header — layout limpo com logo BAJA
-- **Etapa 1 — Seleção de obra**: lista os clientes com status "ativa" como cards clicáveis (nome da empreitada + endereço)
-- **Etapa 2 — Formulário**: idêntico ao `ReportFormPage` (data, equipe, condições climáticas, ferramentas, atividades, observações, fotos)
-- Internamente usa `useGetOrCreateReport` para obter/criar o relatório do cliente selecionado, depois `useCreateEntry` e `useUploadEntryImages`
-- **Etapa 3 — Sucesso**: mensagem "Relato salvo com sucesso!" com dois botões:
-  - "Criar novo relato" → volta à etapa 1
-  - (sem botão de "ir ao painel" — funcionário não tem acesso)
+**1. `src/pages/ExternalReportPage.tsx`**
+- No `catch`, adicionar `console.error` para logar o erro real
+- Mostrar a mensagem de erro real no toast (quando disponível) em vez da mensagem genérica
+- Exemplo: `catch (err: any) { console.error("Erro:", err); toast.error(err?.message || "Erro ao salvar relato."); }`
 
-**2. Atualizar `src/App.tsx`**
-- Adicionar rota pública `/relato-externo` fora do `AuthenticatedRoutes` (ao lado de `/auth` e `/set-password`)
+**2. `src/hooks/use-reports.ts` — `useUploadEntryImages`**
+- Adicionar tratamento de erro mais detalhado no upload de cada imagem
+- Logar o erro de upload no console para debug
 
-**3. Adicionar link copiável nas Configurações ou Relatórios**
-- Na `SettingsPage`, adicionar uma seção "Link Externo para Relatos" com o link e botão de copiar
+Essas mudanças vão revelar o erro real. Se for CORS, tamanho de arquivo ou permissão de storage, a mensagem vai aparecer e podemos corrigir na sequência.
 
-### Detalhes técnicos
-- As tabelas `clients`, `reports`, `report_entries`, `report_images` e `tools` já têm RLS com acesso público (`true`), então não é necessário alterar permissões
-- O bucket `report-images` já é público
-- Não requer autenticação — acesso direto via URL
-- Reutiliza os mesmos hooks existentes (`useClients`, `useTools`, `useGetOrCreateReport`, `useCreateEntry`, `useUploadEntryImages`)
+### Técnico
+- Mudança pontual em 2 arquivos
+- Nenhuma migração necessária
 
