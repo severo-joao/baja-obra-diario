@@ -21,17 +21,11 @@ export default function A4ReportPage({ children, pageNumber, totalPages }: A4Rep
       {/* HEADER */}
       <div className="relative z-10 flex items-start justify-between mb-6">
         {/* Left: Logo box */}
-        <div
-          className="flex items-center justify-center flex-shrink-0"
-          style={{
-            width: 70,
-            height: 70,
-            backgroundColor: "#1A2B4A",
-            borderRadius: 4,
-          }}
-        >
-          <span className="font-extrabold text-white" style={{ fontSize: 32 }}>B</span>
-        </div>
+        <img
+          src="/baja-logo.png"
+          alt="BAJA Logo"
+          style={{ width: 70, height: 70, objectFit: "contain", borderRadius: 4 }}
+        />
 
         {/* Right: Company info */}
         <div className="text-right">
