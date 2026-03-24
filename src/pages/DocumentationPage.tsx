@@ -45,7 +45,7 @@ export default function DocumentationPage() {
   const createWebhook = useCreateWebhook();
   const updateWebhook = useUpdateWebhook();
   const deleteWebhook = useDeleteWebhook();
-  const createLog = useCreateWebhookLog();
+  const qc = useQueryClient();
   const [newEvent, setNewEvent] = useState<Webhook["event_type"]>("relatorio.criado");
   const [newUrl, setNewUrl] = useState("");
 
