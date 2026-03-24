@@ -2,24 +2,28 @@
 
 ## Problema
 
-A `SetPasswordPage` depende exclusivamente do evento `PASSWORD_RECOVERY` do `onAuthStateChange`. Esse evento é disparado pelo Supabase client quando ele processa os tokens do hash da URL. O problema é uma condição de corrida: o Supabase client (inicializado em `client.ts`) pode processar o hash e disparar o evento **antes** do `useEffect` da `SetPasswordPage` registrar o listener. Quando isso acontece, o evento é perdido e a página fica presa no "Verificando convite..." para sempre.
-
-Além disso, o `useAuth` hook no `App.tsx` também escuta `onAuthStateChange` e pode consumir o evento antes.
+O botão "Testar" do webhook apenas cria um registro de log no banco de dados. Ele **nunca faz uma requisição HTTP** para a URL do webhook. O `handleTest` só chama `createLog.mutateAsync()` com status 200 hardcoded, sem enviar nada.
 
 ## Solução
 
-Alterar `SetPasswordPage` para não depender apenas do evento. Adicionar uma verificação de sessão existente no `useEffect`:
+Criar uma Edge Function `fire-webhook` que recebe o webhook ID, busca a URL e event_type, faz o POST real para a URL externa com o payload, e registra o resultado (status code) na tabela `webhook_logs`.
 
-1. Manter o listener de `PASSWORD_RECOVERY` (funciona quando o timing é favorável)
-2. Adicionar `supabase.auth.getSession()` — se já existe sessão ativa (o token do hash já foi processado), marcar como `ready`
-3. Adicionar um timeout de segurança (~5s) para mostrar mensagem de erro caso nem o evento nem a sessão estejam disponíveis (link expirado, por exemplo)
+### Alterações
 
-### Alteração: `src/pages/SetPasswordPage.tsx`
+**1. Criar `supabase/functions/fire-webhook/index.ts`**
+- Recebe `{ webhook_id, payload }` no body
+- Valida autenticação via JWT
+- Busca o webhook no banco (URL, event_type, active)
+- Faz `fetch(url, { method: "POST", headers, body: payload })`
+- Registra o resultado na tabela `webhook_logs` com o status_code real
+- Retorna sucesso/erro
 
-No `useEffect`:
-- Chamar `supabase.auth.getSession()` e se houver sessão, setar `ready = true`
-- Manter o listener para `PASSWORD_RECOVERY` e também `SIGNED_IN` como fallback
-- Adicionar timeout de 5 segundos para exibir mensagem de link expirado/inválido em vez de loading infinito
+**2. Atualizar `src/pages/DocumentationPage.tsx`**
+- Alterar `handleTest` para chamar a edge function `fire-webhook` via `supabase.functions.invoke("fire-webhook", { body: { webhook_id, payload } })`
+- Mostrar o status code real retornado no toast
 
-Arquivo único, mudança pontual.
+### Detalhes técnicos
+- A edge function usa service role key para acessar as tabelas
+- Headers enviados ao webhook: `Content-Type: application/json`, `X-Webhook-Event`, `X-Webhook-Timestamp`
+- Se o fetch falhar (URL inválida, timeout), registra status_code 0 ou o erro
 
