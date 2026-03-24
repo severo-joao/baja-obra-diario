@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { useWebhooks, useWebhookLogs, useCreateWebhook, useUpdateWebhook, useDeleteWebhook, useCreateWebhookLog } from "@/hooks/use-webhooks";
+import { useWebhooks, useWebhookLogs, useCreateWebhook, useUpdateWebhook, useDeleteWebhook } from "@/hooks/use-webhooks";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import type { Webhook } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,7 +45,7 @@ export default function DocumentationPage() {
   const createWebhook = useCreateWebhook();
   const updateWebhook = useUpdateWebhook();
   const deleteWebhook = useDeleteWebhook();
-  const createLog = useCreateWebhookLog();
+  const qc = useQueryClient();
   const [newEvent, setNewEvent] = useState<Webhook["event_type"]>("relatorio.criado");
   const [newUrl, setNewUrl] = useState("");
 
@@ -58,13 +60,29 @@ export default function DocumentationPage() {
     }
   };
 
+  const [testing, setTesting] = useState<string | null>(null);
+
   const handleTest = async (wh: Webhook) => {
     const payload = samplePayloads[wh.event_type];
+    setTesting(wh.id);
     try {
-      await createLog.mutateAsync({ webhook_id: wh.id, event_type: wh.event_type, status_code: 200, created_at: new Date().toISOString(), payload });
-      toast.success(`Teste enviado para ${wh.url}`);
+      const { data, error } = await supabase.functions.invoke("fire-webhook", {
+        body: { webhook_id: wh.id, payload },
+      });
+      if (error) throw error;
+      const code = data?.status_code ?? 0;
+      if (code >= 200 && code < 300) {
+        toast.success(`Webhook respondeu com status ${code}`);
+      } else if (code === 0) {
+        toast.error("Falha na conexão com a URL do webhook");
+      } else {
+        toast.warning(`Webhook respondeu com status ${code}`);
+      }
     } catch {
-      toast.error("Erro ao registrar log.");
+      toast.error("Erro ao disparar webhook.");
+    } finally {
+      setTesting(null);
+      qc.invalidateQueries({ queryKey: ["webhook_logs"] });
     }
   };
 
