@@ -154,7 +154,11 @@ export function useUploadEntryImages() {
     mutationFn: async ({ entryId, reportId, files }: { entryId: string; reportId: string; files: File[] }) => {
       const uploaded: ReportImage[] = [];
       for (const file of files) {
-        const path = `${reportId}/${entryId}/${crypto.randomUUID()}-${file.name}`;
+        const sanitizedName = file.name
+          .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-z0-9.]/gi, "_")
+          .toLowerCase();
+        const path = `${reportId}/${entryId}/${crypto.randomUUID()}-${sanitizedName}`;
         console.log(`Uploading image: ${file.name} (${file.size} bytes)`);
         const { error: uploadError } = await supabase.storage.from("report-images").upload(path, file);
         if (uploadError) {
