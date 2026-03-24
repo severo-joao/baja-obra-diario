@@ -100,8 +100,9 @@ export default function ExternalReportPage() {
       toast.success("Relato salvo com sucesso!");
       resetForm();
       setStep("success");
-    } catch {
-      toast.error("Erro ao salvar relato.");
+    } catch (err: any) {
+      console.error("Erro ao salvar relato:", err);
+      toast.error(err?.message || "Erro ao salvar relato.");
     } finally {
       setSaving(false);
     }

@@ -155,8 +155,12 @@ export function useUploadEntryImages() {
       const uploaded: ReportImage[] = [];
       for (const file of files) {
         const path = `${reportId}/${entryId}/${crypto.randomUUID()}-${file.name}`;
+        console.log(`Uploading image: ${file.name} (${file.size} bytes)`);
         const { error: uploadError } = await supabase.storage.from("report-images").upload(path, file);
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error(`Erro no upload de ${file.name}:`, uploadError);
+          throw new Error(`Falha no upload da imagem "${file.name}": ${uploadError.message}`);
+        }
         const { data: urlData } = supabase.storage.from("report-images").getPublicUrl(path);
         const { data, error } = await supabase
           .from("report_images")
