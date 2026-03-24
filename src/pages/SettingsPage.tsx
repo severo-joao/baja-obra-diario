@@ -9,7 +9,7 @@ import { useInvites } from "@/hooks/use-invites";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Mail, Send, Clock, CheckCircle2 } from "lucide-react";
+import { Loader2, Mail, Send, Clock, CheckCircle2, Link2, Copy } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
