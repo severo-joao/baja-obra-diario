@@ -9,7 +9,7 @@ import { useInvites } from "@/hooks/use-invites";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Mail, Send, Clock, CheckCircle2 } from "lucide-react";
+import { Loader2, Mail, Send, Clock, CheckCircle2, Link2, Copy } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -113,6 +113,36 @@ export default function SettingsPage() {
               ))}
             </div>
           )}
+        </CardContent>
+      </Card>
+      <Card className="shadow-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Link2 className="h-5 w-5" />
+            Link Externo para Relatos
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-3">
+            Compartilhe este link com funcionários de obra para que registrem relatos diários sem precisar de login.
+          </p>
+          <div className="flex gap-2">
+            <Input
+              readOnly
+              value={`${window.location.origin}/relato-externo`}
+              className="font-mono text-sm"
+            />
+            <Button
+              variant="outline"
+              className="gap-2 shrink-0"
+              onClick={() => {
+                navigator.clipboard.writeText(`${window.location.origin}/relato-externo`);
+                toast({ title: "Link copiado!", description: "O link foi copiado para a área de transferência." });
+              }}
+            >
+              <Copy className="h-4 w-4" /> Copiar
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
