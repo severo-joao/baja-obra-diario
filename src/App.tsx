@@ -66,6 +66,7 @@ const App = () => (
         <Routes>
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/set-password" element={<SetPasswordPage />} />
+          <Route path="/relato-externo" element={<ExternalReportPage />} />
           <Route path="/*" element={<AuthenticatedRoutes />} />
         </Routes>
       </BrowserRouter>
