@@ -9,6 +9,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
+import bajaLogo from "@/assets/baja-logo.png";
 import { useLocation } from "react-router-dom";
 import {
   Sidebar,
