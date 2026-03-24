@@ -8,7 +8,7 @@ interface A4ReportPageProps {
 
 export default function A4ReportPage({ children, pageNumber, totalPages }: A4ReportPageProps) {
   return (
-    <div className="a4-page" style={{ padding: "32px" }}>
+    <div className="a4-page" data-report-page style={{ padding: "32px" }}>
       {/* Navy border frame (inset 8px) */}
       <div className="a4-page-border" />
 
