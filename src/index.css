@@ -200,4 +200,7 @@
       display: block !important;
     }
   }
+  #lovable-badge { 
+  display: none !important; 
+}
 }
