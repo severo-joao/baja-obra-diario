@@ -1,19 +1,65 @@
 
 
-## Plano: Corrigir data do relato exibindo um dia a menos
+## Plano: Gerenciamento de Usuários e Permissões por Menu
 
-### Problema
-O `data_relato` é salvo como string `"2025-03-21"`. Ao fazer `new Date("2025-03-21")`, JavaScript interpreta como **UTC meia-noite**, que no fuso do Brasil (UTC-3) vira **20 de março às 21h** — um dia antes. Por isso a data aparece errada na listagem.
+### O que será feito
+Adicionar na página de Configurações uma seção para visualizar todos os usuários do sistema e editar as permissões de cada um, controlando quais itens do menu lateral cada usuário pode ver/editar.
 
-### Solução
-Substituir `new Date(entry.data_relato)` por `new Date(entry.data_relato + "T00:00:00")` em todos os locais, forçando interpretação como horário local.
+### Modelo de dados
 
-### Arquivos afetados
+**Nova tabela `user_permissions`:**
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | uuid (PK) | |
+| user_id | uuid (not null) | Referência ao auth.users |
+| permission_key | text (not null) | Ex: `dashboard`, `clientes`, `ferramentas`, `relatorios`, `exportar`, `documentacao`, `configuracoes` |
+| can_view | boolean | Pode visualizar a página |
+| can_edit | boolean | Pode editar dados na página |
+| created_at | timestamptz | |
 
-1. **`src/pages/ReportsPage.tsx`** (linhas 80, 85) — listagem e sort
-2. **`src/pages/Dashboard.tsx`** (linhas 23, 85) — contagem mensal e atividade recente
-3. **`src/components/report/ReportEntrySection.tsx`** (linha 45) — visualização do relato
-4. **`src/hooks/use-reports.ts`** (sort dos entries) — ordenação
+- Constraint UNIQUE em (user_id, permission_key)
+- RLS: apenas usuários autenticados podem ler; apenas admins podem atualizar
+- Função `is_admin` (security definer) que verifica se o user tem `configuracoes.can_edit = true`
 
-Cada ocorrência de `new Date(e.data_relato)` será trocada por `new Date(e.data_relato + "T00:00:00")`.
+**Nova tabela `profiles`:**
+| Coluna | Tipo |
+|--------|------|
+| id | uuid (PK, ref auth.users) |
+| email | text |
+| created_at | timestamptz |
+
+- Trigger para criar perfil automaticamente no signup
+- Necessária para listar usuários do sistema via SDK
+
+### Alterações no frontend
+
+**1. `src/hooks/use-user-permissions.ts`** (novo)
+- Hook para buscar todos os usuários (via profiles) com suas permissões
+- Hook para atualizar permissões de um usuário
+- Hook para buscar permissões do usuário logado
+
+**2. `src/pages/SettingsPage.tsx`**
+- Adicionar nova seção "Usuários do Sistema" com tabela listando:
+  - Email do usuário
+  - Status (ativo/pendente)
+  - Botão para editar permissões
+- Dialog/modal de edição com checkboxes para cada item do menu:
+  - Dashboard: visualizar / editar
+  - Clientes & Empreitadas: visualizar / editar
+  - Ferramentas: visualizar / editar
+  - Relatórios de Obras: visualizar / editar
+  - Exportar Relatório: visualizar / editar
+  - Documentação & Webhooks: visualizar / editar
+  - Configurações: visualizar / editar
+
+**3. `src/components/layout/AppSidebar.tsx`**
+- Filtrar `navItems` com base nas permissões do usuário logado (ocultar itens sem `can_view`)
+
+**4. `src/App.tsx`**
+- Proteger rotas: redirecionar para Dashboard se o usuário tentar acessar rota sem permissão
+
+### Detalhes de segurança
+- O primeiro usuário (ou quem tem `configuracoes.can_edit`) é tratado como admin
+- Novos usuários recebem permissões padrão (tudo liberado) via trigger ou na criação do invite
+- A função `is_admin` usa SECURITY DEFINER para evitar recursão no RLS
 
