@@ -1,12 +1,19 @@
 
 
-## Plano: Aumentar logo em 50%
+## Plano: Corrigir data do relato exibindo um dia a menos
 
-### Alterações
+### Problema
+O `data_relato` é salvo como string `"2025-03-21"`. Ao fazer `new Date("2025-03-21")`, JavaScript interpreta como **UTC meia-noite**, que no fuso do Brasil (UTC-3) vira **20 de março às 21h** — um dia antes. Por isso a data aparece errada na listagem.
 
-**1. `src/components/layout/AppSidebar.tsx`**
-- Trocar `w-9 h-9` (36px) por `w-14 h-14` (56px) — aumento de ~50%
+### Solução
+Substituir `new Date(entry.data_relato)` por `new Date(entry.data_relato + "T00:00:00")` em todos os locais, forçando interpretação como horário local.
 
-**2. `src/components/report/A4ReportPage.tsx`**
-- Trocar `width: 70, height: 70` por `width: 105, height: 105` — aumento de 50%
+### Arquivos afetados
+
+1. **`src/pages/ReportsPage.tsx`** (linhas 80, 85) — listagem e sort
+2. **`src/pages/Dashboard.tsx`** (linhas 23, 85) — contagem mensal e atividade recente
+3. **`src/components/report/ReportEntrySection.tsx`** (linha 45) — visualização do relato
+4. **`src/hooks/use-reports.ts`** (sort dos entries) — ordenação
+
+Cada ocorrência de `new Date(e.data_relato)` será trocada por `new Date(e.data_relato + "T00:00:00")`.
 
