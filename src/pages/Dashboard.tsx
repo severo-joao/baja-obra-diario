@@ -20,7 +20,7 @@ export default function Dashboard() {
   const now = new Date();
   const entriesThisMonth = reports.reduce((count, r) => {
     return count + (r.entries || []).filter((e) => {
-      const d = new Date(e.data_relato);
+      const d = new Date(e.data_relato + "T00:00:00");
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     }).length;
   }, 0);
