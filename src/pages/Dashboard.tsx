@@ -20,7 +20,7 @@ export default function Dashboard() {
   const now = new Date();
   const entriesThisMonth = reports.reduce((count, r) => {
     return count + (r.entries || []).filter((e) => {
-      const d = new Date(e.data_relato);
+      const d = new Date(e.data_relato + "T00:00:00");
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     }).length;
   }, 0);
@@ -82,7 +82,7 @@ export default function Dashboard() {
                       {e.client?.nome_empreitada || "Obra desconhecida"}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {e.client?.nome_cliente} — {format(new Date(e.data_relato), "dd 'de' MMMM", { locale: ptBR })}
+                      {e.client?.nome_cliente} — {format(new Date(e.data_relato + "T00:00:00"), "dd 'de' MMMM", { locale: ptBR })}
                     </p>
                   </div>
                 </div>

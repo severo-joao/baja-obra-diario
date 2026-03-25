@@ -57,7 +57,7 @@ export function useReport(id: string | undefined) {
           }));
         }
         // Sort entries by date
-        report.entries.sort((a, b) => new Date(a.data_relato).getTime() - new Date(b.data_relato).getTime());
+        report.entries.sort((a, b) => new Date(a.data_relato + "T00:00:00").getTime() - new Date(b.data_relato + "T00:00:00").getTime());
       }
 
       return report;

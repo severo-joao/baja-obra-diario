@@ -42,7 +42,7 @@ export default function ReportEntrySection({ entry, index, clientName, obraName,
         <div>
           <span className="font-semibold uppercase text-xs tracking-wide" style={{ color: "#6B7280" }}>Data: </span>
           <span className="font-medium" style={{ color: "#1A2B4A" }}>
-            {format(new Date(entry.data_relato), "dd/MM/yyyy")}
+            {format(new Date(entry.data_relato + "T00:00:00"), "dd/MM/yyyy")}
           </span>
         </div>
         <div>
