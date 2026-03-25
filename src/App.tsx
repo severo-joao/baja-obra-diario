@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
+import { useMyPermissions, type PermissionKey } from "@/hooks/use-user-permissions";
 import Dashboard from "./pages/Dashboard";
 import ClientsPage from "./pages/ClientsPage";
 import ToolsPage from "./pages/ToolsPage";
@@ -20,6 +21,38 @@ import ExternalReportPage from "./pages/ExternalReportPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+
+const ROUTE_PERMISSION_MAP: Record<string, PermissionKey> = {
+  "/": "dashboard",
+  "/clientes": "clientes",
+  "/ferramentas": "ferramentas",
+  "/relatorios": "relatorios",
+  "/exportar": "exportar",
+  "/documentacao": "documentacao",
+  "/configuracoes": "configuracoes",
+};
+
+function PermissionGate({ children }: { children: React.ReactNode }) {
+  const { data: permissions } = useMyPermissions();
+  const location = useLocation();
+
+  if (!permissions) return <>{children}</>; // loading — allow render
+
+  // Find matching permission key for current route
+  const matchedKey = Object.entries(ROUTE_PERMISSION_MAP).find(([path]) => {
+    if (path === "/") return location.pathname === "/";
+    return location.pathname.startsWith(path);
+  })?.[1];
+
+  if (matchedKey) {
+    const perm = permissions.find((p) => p.permission_key === matchedKey);
+    if (perm && !perm.can_view) {
+      return <Navigate to="/" replace />;
+    }
+  }
+
+  return <>{children}</>;
+}
 
 function AuthenticatedRoutes() {
   const { session, loading } = useAuth();
@@ -40,19 +73,21 @@ function AuthenticatedRoutes() {
 
   return (
     <AppLayout>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/clientes" element={<ClientsPage />} />
-        <Route path="/ferramentas" element={<ToolsPage />} />
-        <Route path="/relatorios" element={<ReportsPage />} />
-        <Route path="/relatorios/entrada/novo/:id" element={<ReportFormPage />} />
-        <Route path="/relatorios/entrada/editar/:entryId" element={<ReportFormPage />} />
-        <Route path="/relatorios/:id" element={<ReportViewerPage />} />
-        <Route path="/exportar" element={<ExportPage />} />
-        <Route path="/documentacao" element={<DocumentationPage />} />
-        <Route path="/configuracoes" element={<SettingsPage />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      <PermissionGate>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/clientes" element={<ClientsPage />} />
+          <Route path="/ferramentas" element={<ToolsPage />} />
+          <Route path="/relatorios" element={<ReportsPage />} />
+          <Route path="/relatorios/entrada/novo/:id" element={<ReportFormPage />} />
+          <Route path="/relatorios/entrada/editar/:entryId" element={<ReportFormPage />} />
+          <Route path="/relatorios/:id" element={<ReportViewerPage />} />
+          <Route path="/exportar" element={<ExportPage />} />
+          <Route path="/documentacao" element={<DocumentationPage />} />
+          <Route path="/configuracoes" element={<SettingsPage />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </PermissionGate>
     </AppLayout>
   );
 }
