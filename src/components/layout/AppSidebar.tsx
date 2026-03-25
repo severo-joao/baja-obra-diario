@@ -23,15 +23,16 @@ import {
   SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { useMyPermissions, type PermissionKey } from "@/hooks/use-user-permissions";
 
-const navItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Clientes & Empreitadas", url: "/clientes", icon: Users },
-  { title: "Ferramentas", url: "/ferramentas", icon: Wrench },
-  { title: "Relatórios de Obras", url: "/relatorios", icon: FileText },
-  { title: "Exportar Relatório", url: "/exportar", icon: Download },
-  { title: "Documentação & Webhooks", url: "/documentacao", icon: BookOpen },
-  { title: "Configurações", url: "/configuracoes", icon: Settings },
+const navItems: { title: string; url: string; icon: typeof LayoutDashboard; permKey: PermissionKey }[] = [
+  { title: "Dashboard", url: "/", icon: LayoutDashboard, permKey: "dashboard" },
+  { title: "Clientes & Empreitadas", url: "/clientes", icon: Users, permKey: "clientes" },
+  { title: "Ferramentas", url: "/ferramentas", icon: Wrench, permKey: "ferramentas" },
+  { title: "Relatórios de Obras", url: "/relatorios", icon: FileText, permKey: "relatorios" },
+  { title: "Exportar Relatório", url: "/exportar", icon: Download, permKey: "exportar" },
+  { title: "Documentação & Webhooks", url: "/documentacao", icon: BookOpen, permKey: "documentacao" },
+  { title: "Configurações", url: "/configuracoes", icon: Settings, permKey: "configuracoes" },
 ];
 
 interface AppSidebarProps {
@@ -43,6 +44,13 @@ export function AppSidebar({ onSignOut, userEmail }: AppSidebarProps) {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const { data: permissions } = useMyPermissions();
+
+  const visibleItems = navItems.filter((item) => {
+    if (!permissions) return true; // show all while loading
+    const perm = permissions.find((p) => p.permission_key === item.permKey);
+    return perm ? perm.can_view : true;
+  });
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
@@ -62,9 +70,9 @@ export function AppSidebar({ onSignOut, userEmail }: AppSidebarProps) {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => {
-                const isActive = item.url === "/" 
-                  ? location.pathname === "/" 
+              {visibleItems.map((item) => {
+                const isActive = item.url === "/"
+                  ? location.pathname === "/"
                   : location.pathname.startsWith(item.url);
                 return (
                   <SidebarMenuItem key={item.title}>
