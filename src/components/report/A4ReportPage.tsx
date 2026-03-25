@@ -24,7 +24,7 @@ export default function A4ReportPage({ children, pageNumber, totalPages }: A4Rep
         <img
           src="/baja-logo.png"
           alt="BAJA Logo"
-          style={{ width: 70, height: 70, objectFit: "contain", borderRadius: 4 }}
+          style={{ width: 105, height: 105, objectFit: "contain", borderRadius: 4 }}
         />
 
         {/* Right: Company info */}
