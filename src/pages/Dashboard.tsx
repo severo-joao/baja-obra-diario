@@ -82,7 +82,7 @@ export default function Dashboard() {
                       {e.client?.nome_empreitada || "Obra desconhecida"}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {e.client?.nome_cliente} — {format(new Date(e.data_relato), "dd 'de' MMMM", { locale: ptBR })}
+                      {e.client?.nome_cliente} — {format(new Date(e.data_relato + "T00:00:00"), "dd 'de' MMMM", { locale: ptBR })}
                     </p>
                   </div>
                 </div>

@@ -82,7 +82,7 @@ export default function ReportsPage() {
                       <div key={entry.id} className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors group">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium">
-                            {format(new Date(entry.data_relato), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                            {format(new Date(entry.data_relato + "T00:00:00"), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                           </p>
                           <p className="text-xs text-muted-foreground truncate">{entry.atividades_dia.slice(0, 80)}...</p>
                         </div>
