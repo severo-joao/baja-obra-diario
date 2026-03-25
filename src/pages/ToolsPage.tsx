@@ -150,7 +150,11 @@ export default function ToolsPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Código/Patrimônio</Label>
-                <Input value={form.codigo_patrimonio} onChange={(e) => setForm({ ...form, codigo_patrimonio: e.target.value })} />
+                {editing ? (
+                  <Input value={form.codigo_patrimonio} disabled className="bg-muted" />
+                ) : (
+                  <Input value="Gerado automaticamente" disabled className="bg-muted text-muted-foreground italic" />
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Categoria</Label>
