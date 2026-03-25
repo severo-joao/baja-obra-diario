@@ -77,7 +77,7 @@ export default function ReportsPage() {
               <CardContent>
                 <div className="space-y-2">
                   {(report.entries || [])
-                    .sort((a, b) => new Date(b.data_relato).getTime() - new Date(a.data_relato).getTime())
+                    .sort((a, b) => new Date(b.data_relato + "T00:00:00").getTime() - new Date(a.data_relato + "T00:00:00").getTime())
                     .map((entry) => (
                       <div key={entry.id} className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors group">
                         <div className="flex-1 min-w-0">
