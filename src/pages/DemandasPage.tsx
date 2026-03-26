@@ -27,12 +27,22 @@ import {
 } from "@/hooks/use-demandas";
 import { toast } from "sonner";
 
-const emptyForm = {
+interface DemandaForm {
+  titulo: string;
+  descricao: string;
+  prioridade: "alta" | "media" | "baixa";
+  sazonal: boolean;
+  intervalo_dias: number | null;
+  data_notificacao: string;
+  webhook_url: string;
+}
+
+const emptyForm: DemandaForm = {
   titulo: "",
   descricao: "",
-  prioridade: "media" as const,
+  prioridade: "media",
   sazonal: false,
-  intervalo_dias: null as number | null,
+  intervalo_dias: null,
   data_notificacao: "",
   webhook_url: "",
 };
