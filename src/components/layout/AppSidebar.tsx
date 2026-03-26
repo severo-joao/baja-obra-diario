@@ -56,7 +56,7 @@ export function AppSidebar({ onSignOut, userEmail }: AppSidebarProps) {
     <Sidebar collapsible="icon" className="border-r-0">
       <SidebarHeader className="p-4 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <img src={bajaLogo} alt="BAJA Logo" className="w-[84px] h-[84px] object-contain flex-shrink-0" />
+          <img src={bajaLogo} alt="BAJA Logo" className="bg-white rounded-lg flex-shrink-0 w-[84px] h-[84px] flex items-center justify-center p-[3px] px-[5px] py-[5px]" />
           {!collapsed && (
             <div className="animate-fade-in">
               <h1 className="font-bold text-base text-sidebar-accent-foreground leading-tight tracking-tight">BAJA</h1>
