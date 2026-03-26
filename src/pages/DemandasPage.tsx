@@ -177,10 +177,6 @@ export default function DemandasPage() {
                   <Input type="number" min={1} value={form.intervalo_dias || ""} onChange={(e) => setForm({ ...form, intervalo_dias: parseInt(e.target.value) || null })} />
                 </div>
               )}
-              <div>
-                <Label>Webhook URL</Label>
-                <Input placeholder="https://..." value={form.webhook_url} onChange={(e) => setForm({ ...form, webhook_url: e.target.value })} />
-              </div>
               <Button className="w-full" onClick={handleSubmit} disabled={createMut.isPending || updateMut.isPending}>
                 {editId ? "Salvar Alterações" : "Criar Demanda"}
               </Button>

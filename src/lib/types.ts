@@ -60,7 +60,7 @@ export interface ReportImage {
 
 export interface Webhook {
   id: string;
-  event_type: 'relatorio.criado' | 'relatorio.atualizado' | 'cliente.cadastrado';
+  event_type: 'relatorio.criado' | 'relatorio.atualizado' | 'cliente.cadastrado' | 'demanda.vencida';
   url: string;
   active: boolean;
   created_at: string;
