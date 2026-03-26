@@ -85,6 +85,7 @@ function AuthenticatedRoutes() {
           <Route path="/relatorios/entrada/editar/:entryId" element={<ReportFormPage />} />
           <Route path="/relatorios/:id" element={<ReportViewerPage />} />
           <Route path="/exportar" element={<ExportPage />} />
+          <Route path="/demandas" element={<DemandasPage />} />
           <Route path="/documentacao" element={<DocumentationPage />} />
           <Route path="/configuracoes" element={<SettingsPage />} />
           <Route path="*" element={<NotFound />} />

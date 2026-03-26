@@ -22,6 +22,7 @@ export const PERMISSION_LABELS: Record<PermissionKey, string> = {
   relatorios: "Relatórios de Obras",
   exportar: "Exportar Relatório",
   documentacao: "Documentação & Webhooks",
+  demandas: "Demandas",
   configuracoes: "Configurações",
 };
 

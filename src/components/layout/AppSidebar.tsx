@@ -33,6 +33,7 @@ const navItems: { title: string; url: string; icon: typeof LayoutDashboard; perm
   { title: "Ferramentas", url: "/ferramentas", icon: Wrench, permKey: "ferramentas" },
   { title: "Relatórios de Obras", url: "/relatorios", icon: FileText, permKey: "relatorios" },
   { title: "Exportar Relatório", url: "/exportar", icon: Download, permKey: "exportar" },
+  { title: "Demandas", url: "/demandas", icon: ClipboardList, permKey: "demandas" },
   { title: "Documentação & Webhooks", url: "/documentacao", icon: BookOpen, permKey: "documentacao" },
   { title: "Configurações", url: "/configuracoes", icon: Settings, permKey: "configuracoes" },
 ];
