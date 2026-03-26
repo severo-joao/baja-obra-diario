@@ -121,11 +121,16 @@ export function useCreateEntry() {
       // Update report's updated_at
       await supabase.from("reports").update({ updated_at: new Date().toISOString() }).eq("id", entry.report_id);
 
-      // Fire webhooks
+      // Fetch report + client info for webhook payload
+      const { data: reportData } = await supabase.from("reports").select("client_id, clients(nome_cliente, nome_empreitada)").eq("id", entry.report_id).single();
+      const client = (reportData as any)?.clients;
+
       await fireWebhooksForEvent("relatorio.atualizado", {
         report_id: entry.report_id,
         entry_id: data.id,
         action: "entry_created",
+        nome_cliente: client?.nome_cliente ?? "",
+        nome_empreitada: client?.nome_empreitada ?? "",
         data_relato: entry.data_relato,
         atividades_dia: entry.atividades_dia,
       });
