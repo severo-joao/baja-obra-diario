@@ -9,6 +9,7 @@ export const PERMISSION_KEYS = [
   "relatorios",
   "exportar",
   "documentacao",
+  "demandas",
   "configuracoes",
 ] as const;
 
