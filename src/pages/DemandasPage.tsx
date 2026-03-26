@@ -62,7 +62,7 @@ export default function DemandasPage() {
     setForm({
       titulo: d.titulo,
       descricao: d.descricao,
-      prioridade: d.prioridade,
+      prioridade: d.prioridade as "alta" | "media" | "baixa",
       sazonal: d.sazonal,
       intervalo_dias: d.intervalo_dias,
       data_notificacao: d.data_notificacao,
