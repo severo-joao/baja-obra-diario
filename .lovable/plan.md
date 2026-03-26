@@ -1,33 +1,31 @@
 
 
-## Plano: Disparar webhooks automaticamente ao criar/atualizar relatórios
+## Plano: Endpoint para buscar demandas por data
 
-### Problema
-Os hooks de relatório (`useCreateEntry`, `useUpdateEntry`, `useGetOrCreateReport`) salvam dados no banco mas nunca chamam os webhooks registrados. O botão "Testar" na Documentação envia apenas payloads de exemplo.
-
-### Solução
-Após cada operação de criação/atualização de relatório, chamar a edge function `fire-webhook` para todos os webhooks ativos do event type correspondente.
+### Resumo
+Criar uma nova Edge Function `get-demandas` que recebe um parâmetro `data` (formato `YYYY-MM-DD`) e retorna as demandas pendentes daquele dia em JSON.
 
 ### Alterações
 
-**1. `src/hooks/use-reports.ts`**
-- Importar `supabase` (já importado)
-- No `useGetOrCreateReport`: após criar um novo relatório, buscar webhooks ativos com `event_type = 'relatorio.criado'` e chamar `fire-webhook` para cada um, enviando os dados reais do relatório
-- No `useCreateEntry` e `useUpdateEntry`: após salvar, buscar webhooks ativos com `event_type = 'relatorio.atualizado'` e chamar `fire-webhook` para cada um com dados reais da entry
+**1. Nova Edge Function `supabase/functions/get-demandas/index.ts`**
+- Aceita GET com query param `data` (ex: `?data=2026-03-26`)
+- Consulta tabela `demandas` filtrando `data_notificacao = data` e `status = 'pendente'`
+- Retorna JSON com array de demandas encontradas
+- CORS headers padrão
+- Usa `SUPABASE_SERVICE_ROLE_KEY` para acesso completo
 
-**2. Criar função utilitária `src/lib/webhook-utils.ts`**
-- Função `fireWebhooksForEvent(eventType, payload)` que:
-  1. Consulta tabela `webhooks` filtrando por `event_type` e `active = true`
-  2. Para cada webhook encontrado, chama `supabase.functions.invoke('fire-webhook', { body: { webhook_id, payload } })`
-  3. Erros são silenciosos (não bloqueia a operação principal)
+**2. Documentação (`src/pages/DocumentationPage.tsx`)**
+- Adicionar seção documentando o endpoint `get-demandas` com exemplo de chamada e resposta
 
-**3. Integração nos mutations**
-- `useGetOrCreateReport` → dispara `relatorio.criado` (só quando cria novo, não quando encontra existente)
-- `useCreateEntry` → dispara `relatorio.atualizado` com dados da entry criada
-- `useUpdateEntry` → dispara `relatorio.atualizado` com dados da entry atualizada
+### Exemplo de uso
+```
+GET /functions/v1/get-demandas?data=2026-03-26
 
-### Fluxo resultante
-1. Usuário cria relatório → dados salvos no banco → webhooks `relatorio.criado` disparados automaticamente
-2. Usuário adiciona/edita entry → dados salvos → webhooks `relatorio.atualizado` disparados
-3. Logs registrados automaticamente na tabela `webhook_logs` pela edge function
+Response:
+{
+  "demandas": [
+    { "id": "...", "titulo": "...", "prioridade": "alta", ... }
+  ]
+}
+```
 
