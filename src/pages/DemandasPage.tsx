@@ -34,7 +34,6 @@ interface DemandaForm {
   sazonal: boolean;
   intervalo_dias: number | null;
   data_notificacao: string;
-  webhook_url: string;
 }
 
 const emptyForm: DemandaForm = {
@@ -44,7 +43,6 @@ const emptyForm: DemandaForm = {
   sazonal: false,
   intervalo_dias: null,
   data_notificacao: "",
-  webhook_url: "",
 };
 
 export default function DemandasPage() {
