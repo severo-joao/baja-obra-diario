@@ -62,6 +62,48 @@ export type Database = {
         }
         Relationships: []
       }
+      demandas: {
+        Row: {
+          created_at: string
+          data_notificacao: string
+          descricao: string
+          id: string
+          intervalo_dias: number | null
+          prioridade: string
+          sazonal: boolean
+          status: string
+          titulo: string
+          updated_at: string
+          webhook_url: string
+        }
+        Insert: {
+          created_at?: string
+          data_notificacao: string
+          descricao?: string
+          id?: string
+          intervalo_dias?: number | null
+          prioridade?: string
+          sazonal?: boolean
+          status?: string
+          titulo: string
+          updated_at?: string
+          webhook_url?: string
+        }
+        Update: {
+          created_at?: string
+          data_notificacao?: string
+          descricao?: string
+          id?: string
+          intervalo_dias?: number | null
+          prioridade?: string
+          sazonal?: boolean
+          status?: string
+          titulo?: string
+          updated_at?: string
+          webhook_url?: string
+        }
+        Relationships: []
+      }
       invites: {
         Row: {
           created_at: string
