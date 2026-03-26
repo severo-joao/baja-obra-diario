@@ -20,7 +20,7 @@ export function useDemandas() {
 export function useCreateDemanda() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (demanda: Omit<Demanda, "id" | "created_at" | "updated_at" | "status">) => {
+    mutationFn: async (demanda: Omit<Demanda, "id" | "created_at" | "updated_at" | "status" | "webhook_url">) => {
       const { data, error } = await supabase
         .from("demandas")
         .insert(demanda as any)

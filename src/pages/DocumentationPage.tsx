@@ -19,6 +19,7 @@ const EVENT_TYPES = [
   { value: "relatorio.criado", label: "Relatório Criado" },
   { value: "relatorio.atualizado", label: "Relatório Atualizado" },
   { value: "cliente.cadastrado", label: "Cliente Cadastrado" },
+  { value: "demanda.vencida", label: "Demanda Vencida" },
 ] as const;
 
 const samplePayloads: Record<string, string> = {
@@ -36,6 +37,24 @@ const samplePayloads: Record<string, string> = {
     event: "cliente.cadastrado",
     timestamp: "2025-03-21T09:00:00Z",
     data: { id: "client-789", nome_cliente: "João Silva", nome_empreitada: "Residencial Aurora" },
+  }, null, 2),
+  "demanda.vencida": JSON.stringify({
+    event: "demanda.vencida",
+    timestamp: "2025-03-21T08:00:00Z",
+    data: {
+      id: "demanda-001",
+      titulo: "Renovar licença ambiental",
+      descricao: "Licença vence em 30 dias",
+      prioridade: "alta",
+      data_notificacao: "2025-03-21",
+      sazonal: true,
+      intervalo_dias: 365,
+    },
+    acoes: {
+      renovar: "https://.../functions/v1/demanda-action?id=demanda-001&action=renovar",
+      lembrar_amanha: "https://.../functions/v1/demanda-action?id=demanda-001&action=lembrar_amanha",
+      aprovar: "https://.../functions/v1/demanda-action?id=demanda-001&action=aprovar",
+    },
   }, null, 2),
 };
 

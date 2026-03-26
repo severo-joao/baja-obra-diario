@@ -34,7 +34,6 @@ interface DemandaForm {
   sazonal: boolean;
   intervalo_dias: number | null;
   data_notificacao: string;
-  webhook_url: string;
 }
 
 const emptyForm: DemandaForm = {
@@ -44,7 +43,6 @@ const emptyForm: DemandaForm = {
   sazonal: false,
   intervalo_dias: null,
   data_notificacao: "",
-  webhook_url: "",
 };
 
 export default function DemandasPage() {
@@ -76,7 +74,6 @@ export default function DemandasPage() {
       sazonal: d.sazonal,
       intervalo_dias: d.intervalo_dias,
       data_notificacao: d.data_notificacao,
-      webhook_url: d.webhook_url,
     });
     setDateValue(new Date(d.data_notificacao + "T12:00:00"));
     setOpen(true);
@@ -180,10 +177,6 @@ export default function DemandasPage() {
                   <Input type="number" min={1} value={form.intervalo_dias || ""} onChange={(e) => setForm({ ...form, intervalo_dias: parseInt(e.target.value) || null })} />
                 </div>
               )}
-              <div>
-                <Label>Webhook URL</Label>
-                <Input placeholder="https://..." value={form.webhook_url} onChange={(e) => setForm({ ...form, webhook_url: e.target.value })} />
-              </div>
               <Button className="w-full" onClick={handleSubmit} disabled={createMut.isPending || updateMut.isPending}>
                 {editId ? "Salvar Alterações" : "Criar Demanda"}
               </Button>
