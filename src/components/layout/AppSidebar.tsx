@@ -1,4 +1,5 @@
 import {
+import {
   LayoutDashboard,
   Users,
   Wrench,
@@ -7,6 +8,7 @@ import {
   BookOpen,
   Settings,
   LogOut,
+  ClipboardList,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import bajaLogo from "@/assets/baja-logo.png";
