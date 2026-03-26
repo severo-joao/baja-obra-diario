@@ -13,6 +13,7 @@ import ReportsPage from "./pages/ReportsPage";
 import ReportFormPage from "./pages/ReportFormPage";
 import ReportViewerPage from "./pages/ReportViewerPage";
 import ExportPage from "./pages/ExportPage";
+import DemandasPage from "./pages/DemandasPage";
 import DocumentationPage from "./pages/DocumentationPage";
 import SettingsPage from "./pages/SettingsPage";
 import AuthPage from "./pages/AuthPage";
