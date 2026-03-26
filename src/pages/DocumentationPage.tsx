@@ -19,6 +19,7 @@ const EVENT_TYPES = [
   { value: "relatorio.criado", label: "Relatório Criado" },
   { value: "relatorio.atualizado", label: "Relatório Atualizado" },
   { value: "cliente.cadastrado", label: "Cliente Cadastrado" },
+  { value: "demanda.vencida", label: "Demanda Vencida" },
 ] as const;
 
 const samplePayloads: Record<string, string> = {
