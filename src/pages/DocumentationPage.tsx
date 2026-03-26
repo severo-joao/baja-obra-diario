@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useWebhooks, useWebhookLogs, useCreateWebhook, useUpdateWebhook, useDeleteWebhook } from "@/hooks/use-webhooks";
+import { useApiKeys, useCreateApiKey, useToggleApiKey, useDeleteApiKey } from "@/hooks/use-api-keys";
+import type { ApiKey } from "@/hooks/use-api-keys";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Webhook } from "@/lib/types";
@@ -11,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Trash2, Send, BookOpen, Webhook as WebhookIcon } from "lucide-react";
+import { Plus, Trash2, Send, BookOpen, Webhook as WebhookIcon, Key, Copy, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -58,15 +60,27 @@ const samplePayloads: Record<string, string> = {
   }, null, 2),
 };
 
+function maskKey(key: string) {
+  if (key.length <= 12) return key;
+  return key.slice(0, 8) + "••••••••" + key.slice(-4);
+}
+
 export default function DocumentationPage() {
   const { data: webhooks = [], isLoading: lw } = useWebhooks();
   const { data: webhookLogs = [], isLoading: ll } = useWebhookLogs();
   const createWebhook = useCreateWebhook();
   const updateWebhook = useUpdateWebhook();
   const deleteWebhook = useDeleteWebhook();
+  const { data: apiKeys = [], isLoading: lk } = useApiKeys();
+  const createApiKey = useCreateApiKey();
+  const toggleApiKey = useToggleApiKey();
+  const deleteApiKey = useDeleteApiKey();
   const qc = useQueryClient();
   const [newEvent, setNewEvent] = useState<Webhook["event_type"]>("relatorio.criado");
   const [newUrl, setNewUrl] = useState("");
+  const [newKeyName, setNewKeyName] = useState("");
+  const [revealedKey, setRevealedKey] = useState<string | null>(null);
+  const [justCreatedKey, setJustCreatedKey] = useState<string | null>(null);
 
   const handleAddWebhook = async () => {
     if (!newUrl) { toast.error("Informe a URL do webhook."); return; }
@@ -105,19 +119,38 @@ export default function DocumentationPage() {
     }
   };
 
+  const handleCreateApiKey = async () => {
+    if (!newKeyName.trim()) { toast.error("Informe um nome para a chave."); return; }
+    try {
+      const created = await createApiKey.mutateAsync(newKeyName.trim());
+      setNewKeyName("");
+      setJustCreatedKey(created.key);
+      toast.success("API Key gerada com sucesso!");
+    } catch {
+      toast.error("Erro ao gerar API Key.");
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Copiado!");
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold">Documentação & Webhooks</h1>
-        <p className="text-muted-foreground text-sm mt-1">Integrações e documentação da API</p>
+        <p className="text-muted-foreground text-sm mt-1">Integrações, API Keys e documentação da API</p>
       </div>
 
       <Tabs defaultValue="webhooks">
         <TabsList>
           <TabsTrigger value="webhooks"><WebhookIcon className="h-4 w-4 mr-1.5" /> Webhooks</TabsTrigger>
+          <TabsTrigger value="apikeys"><Key className="h-4 w-4 mr-1.5" /> API Keys</TabsTrigger>
           <TabsTrigger value="docs"><BookOpen className="h-4 w-4 mr-1.5" /> Documentação</TabsTrigger>
         </TabsList>
 
+        {/* ===== WEBHOOKS TAB ===== */}
         <TabsContent value="webhooks" className="space-y-6 mt-4">
           <Card className="shadow-sm">
             <CardHeader><CardTitle className="text-base">Registrar Webhook</CardTitle></CardHeader>
@@ -178,11 +211,98 @@ export default function DocumentationPage() {
           )}
         </TabsContent>
 
+        {/* ===== API KEYS TAB ===== */}
+        <TabsContent value="apikeys" className="space-y-6 mt-4">
+          <Card className="shadow-sm">
+            <CardHeader><CardTitle className="text-base">Gerar Nova API Key</CardTitle></CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Input
+                  placeholder="Nome da chave (ex: Integração Make)"
+                  value={newKeyName}
+                  onChange={(e) => setNewKeyName(e.target.value)}
+                  className="flex-1"
+                />
+                <Button onClick={handleCreateApiKey} disabled={createApiKey.isPending} className="bg-baja-orange hover:bg-baja-orange/90 text-accent-foreground">
+                  <Key className="h-4 w-4 mr-1" /> Gerar Chave
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {justCreatedKey && (
+            <Card className="shadow-sm border-green-500/50 bg-green-50 dark:bg-green-950/20">
+              <CardContent className="p-4">
+                <p className="text-sm font-semibold text-green-700 dark:text-green-400 mb-2">
+                  ⚠️ Copie sua chave agora — ela não será exibida novamente!
+                </p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 bg-background p-2 rounded text-sm font-mono break-all border">{justCreatedKey}</code>
+                  <Button variant="outline" size="sm" onClick={() => copyToClipboard(justCreatedKey)}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => setJustCreatedKey(null)}>
+                  Entendi, fechar
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {lk ? <Skeleton className="h-32 w-full" /> : apiKeys.length > 0 && (
+            <Card className="shadow-sm">
+              <CardHeader><CardTitle className="text-base">Chaves Existentes</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                {apiKeys.map((ak: ApiKey) => (
+                  <div key={ak.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg bg-secondary/50">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{ak.name || "Sem nome"}</p>
+                      <div className="flex items-center gap-1 mt-1">
+                        <code className="text-xs font-mono text-muted-foreground">
+                          {revealedKey === ak.id ? ak.key : maskKey(ak.key)}
+                        </code>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setRevealedKey(revealedKey === ak.id ? null : ak.id)}>
+                          {revealedKey === ak.id ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyToClipboard(ak.key)}>
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Criada em {format(new Date(ak.created_at), "dd/MM/yyyy HH:mm")}
+                        {ak.last_used_at && ` · Último uso: ${format(new Date(ak.last_used_at), "dd/MM/yyyy HH:mm")}`}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Switch checked={ak.active} onCheckedChange={(v) => toggleApiKey.mutate({ id: ak.id, active: v })} />
+                      <Button variant="ghost" size="icon" onClick={async () => { await deleteApiKey.mutateAsync(ak.id); toast.success("Chave removida!"); }} className="text-destructive hover:text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* ===== DOCS TAB ===== */}
         <TabsContent value="docs" className="mt-4">
           <Card className="shadow-sm">
             <CardContent className="p-6 prose prose-sm max-w-none">
               <h2 className="text-lg font-bold mb-4" style={{ color: "hsl(216, 47%, 20%)" }}>Documentação da API</h2>
-              <h3 className="text-base font-semibold mt-6 mb-2">Eventos Disponíveis</h3>
+
+              <h3 className="text-base font-semibold mt-6 mb-2">Autenticação</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Todas as chamadas à API requerem uma chave de autenticação no header <code>x-api-key</code>.
+                Gere sua chave na aba "API Keys" acima.
+              </p>
+              <pre className="bg-foreground/5 rounded-lg p-4 text-xs overflow-x-auto">
+                <code>{`Headers:
+  x-api-key: baja_xxxxxxxxxxxxxxxxxxxxxxxxxxxx`}</code>
+              </pre>
+
+              <h3 className="text-base font-semibold mt-8 mb-2">Eventos de Webhook Disponíveis</h3>
               <p className="text-sm text-muted-foreground mb-4">Os webhooks enviam requisições POST para a URL configurada quando eventos ocorrem no sistema.</p>
               {EVENT_TYPES.map((evt) => (
                 <div key={evt.value} className="mb-6">
@@ -194,7 +314,7 @@ export default function DocumentationPage() {
                   </pre>
                 </div>
               ))}
-              <h3 className="text-base font-semibold mt-6 mb-2">Headers</h3>
+              <h3 className="text-base font-semibold mt-6 mb-2">Headers dos Webhooks</h3>
               <pre className="bg-foreground/5 rounded-lg p-4 text-xs">
                 <code>{`Content-Type: application/json\nX-Webhook-Event: <event_type>\nX-Webhook-Timestamp: <ISO 8601>`}</code>
               </pre>
@@ -208,8 +328,7 @@ export default function DocumentationPage() {
                 <code>{`GET /functions/v1/get-demandas?data=2026-03-26
 
 Headers:
-  Authorization: Bearer <ANON_KEY>
-  apikey: <ANON_KEY>`}</code>
+  x-api-key: baja_xxxxxxxxxxxxxxxxxxxxxxxxxxxx`}</code>
               </pre>
               <h4 className="font-semibold text-sm mt-4 mb-2">Resposta (200)</h4>
               <pre className="bg-foreground/5 rounded-lg p-4 text-xs overflow-x-auto">
@@ -227,6 +346,10 @@ Headers:
     }
   ]
 }, null, 2)}</code>
+              </pre>
+              <h4 className="font-semibold text-sm mt-4 mb-2">Erro (401 — Chave inválida)</h4>
+              <pre className="bg-foreground/5 rounded-lg p-4 text-xs overflow-x-auto">
+                <code>{`{ "error": "API key inválida ou inativa" }`}</code>
               </pre>
               <h4 className="font-semibold text-sm mt-4 mb-2">Erro (400)</h4>
               <pre className="bg-foreground/5 rounded-lg p-4 text-xs overflow-x-auto">
