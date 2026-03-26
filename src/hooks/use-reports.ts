@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Report, ReportEntry, ReportImage } from "@/lib/types";
+import { fireWebhooksForEvent } from "@/lib/webhook-utils";
 
 export function useReports() {
   return useQuery({
