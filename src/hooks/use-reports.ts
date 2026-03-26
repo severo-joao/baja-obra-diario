@@ -87,10 +87,14 @@ export function useGetOrCreateReport() {
         .single();
       if (error) throw error;
 
-      // Fire webhooks for new report
+      // Fetch client name for webhook payload
+      const { data: clientData } = await supabase.from("clients").select("nome_cliente, nome_empreitada").eq("id", clientId).single();
+
       await fireWebhooksForEvent("relatorio.criado", {
         report_id: data.id,
         client_id: clientId,
+        nome_cliente: clientData?.nome_cliente ?? "",
+        nome_empreitada: clientData?.nome_empreitada ?? "",
         created_at: new Date().toISOString(),
       });
 
