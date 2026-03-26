@@ -88,7 +88,7 @@ export function useGetOrCreateReport() {
       if (error) throw error;
 
       // Fire webhooks for new report
-      fireWebhooksForEvent("relatorio.criado", {
+      await fireWebhooksForEvent("relatorio.criado", {
         report_id: data.id,
         client_id: clientId,
         created_at: new Date().toISOString(),
@@ -118,7 +118,7 @@ export function useCreateEntry() {
       await supabase.from("reports").update({ updated_at: new Date().toISOString() }).eq("id", entry.report_id);
 
       // Fire webhooks
-      fireWebhooksForEvent("relatorio.atualizado", {
+      await fireWebhooksForEvent("relatorio.atualizado", {
         report_id: entry.report_id,
         entry_id: data.id,
         action: "entry_created",
@@ -142,7 +142,7 @@ export function useUpdateEntry() {
       await supabase.from("reports").update({ updated_at: new Date().toISOString() }).eq("id", report_id);
 
       // Fire webhooks
-      fireWebhooksForEvent("relatorio.atualizado", {
+      await fireWebhooksForEvent("relatorio.atualizado", {
         report_id,
         entry_id: id,
         action: "entry_updated",
