@@ -13,6 +13,7 @@ import ReportsPage from "./pages/ReportsPage";
 import ReportFormPage from "./pages/ReportFormPage";
 import ReportViewerPage from "./pages/ReportViewerPage";
 import ExportPage from "./pages/ExportPage";
+import DemandasPage from "./pages/DemandasPage";
 import DocumentationPage from "./pages/DocumentationPage";
 import SettingsPage from "./pages/SettingsPage";
 import AuthPage from "./pages/AuthPage";
@@ -28,6 +29,7 @@ const ROUTE_PERMISSION_MAP: Record<string, PermissionKey> = {
   "/ferramentas": "ferramentas",
   "/relatorios": "relatorios",
   "/exportar": "exportar",
+  "/demandas": "demandas",
   "/documentacao": "documentacao",
   "/configuracoes": "configuracoes",
 };
@@ -83,6 +85,7 @@ function AuthenticatedRoutes() {
           <Route path="/relatorios/entrada/editar/:entryId" element={<ReportFormPage />} />
           <Route path="/relatorios/:id" element={<ReportViewerPage />} />
           <Route path="/exportar" element={<ExportPage />} />
+          <Route path="/demandas" element={<DemandasPage />} />
           <Route path="/documentacao" element={<DocumentationPage />} />
           <Route path="/configuracoes" element={<SettingsPage />} />
           <Route path="*" element={<NotFound />} />

@@ -97,6 +97,31 @@ export const CLIENT_STATUS = [
   { value: 'pausada', label: 'Pausada', color: 'bg-amber-100 text-amber-700' },
 ] as const;
 
+export interface Demanda {
+  id: string;
+  titulo: string;
+  descricao: string;
+  prioridade: 'alta' | 'media' | 'baixa';
+  sazonal: boolean;
+  intervalo_dias: number | null;
+  data_notificacao: string;
+  webhook_url: string;
+  status: 'pendente' | 'aprovada';
+  created_at: string;
+  updated_at: string;
+}
+
+export const DEMANDA_PRIORIDADE = [
+  { value: 'alta', label: 'Alta', color: 'bg-red-100 text-red-700' },
+  { value: 'media', label: 'Média', color: 'bg-amber-100 text-amber-700' },
+  { value: 'baixa', label: 'Baixa', color: 'bg-emerald-100 text-emerald-700' },
+] as const;
+
+export const DEMANDA_STATUS = [
+  { value: 'pendente', label: 'Pendente', color: 'bg-amber-100 text-amber-700' },
+  { value: 'aprovada', label: 'Aprovada', color: 'bg-emerald-100 text-emerald-700' },
+] as const;
+
 export const TOOL_STATUS = [
   { value: 'disponivel', label: 'Disponível', color: 'bg-emerald-100 text-emerald-700' },
   { value: 'em_uso', label: 'Em uso', color: 'bg-amber-100 text-amber-700' },
