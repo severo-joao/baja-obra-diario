@@ -1,36 +1,33 @@
 
 
-## Plano: Mover webhook de demandas para a página Documentação
+## Plano: Disparar webhooks automaticamente ao criar/atualizar relatórios
 
-### Resumo
-Remover o campo `webhook_url` do cadastro individual de demandas e usar um webhook centralizado registrado na página Documentação com o event type `demanda.vencida`.
+### Problema
+Os hooks de relatório (`useCreateEntry`, `useUpdateEntry`, `useGetOrCreateReport`) salvam dados no banco mas nunca chamam os webhooks registrados. O botão "Testar" na Documentação envia apenas payloads de exemplo.
+
+### Solução
+Após cada operação de criação/atualização de relatório, chamar a edge function `fire-webhook` para todos os webhooks ativos do event type correspondente.
 
 ### Alterações
 
-**1. Página Documentação (`src/pages/DocumentationPage.tsx`)**
-- Adicionar `demanda.vencida` ao array `EVENT_TYPES` com label "Demanda Vencida"
-- Adicionar payload de exemplo em `samplePayloads` mostrando os dados da demanda + URLs de ação
+**1. `src/hooks/use-reports.ts`**
+- Importar `supabase` (já importado)
+- No `useGetOrCreateReport`: após criar um novo relatório, buscar webhooks ativos com `event_type = 'relatorio.criado'` e chamar `fire-webhook` para cada um, enviando os dados reais do relatório
+- No `useCreateEntry` e `useUpdateEntry`: após salvar, buscar webhooks ativos com `event_type = 'relatorio.atualizado'` e chamar `fire-webhook` para cada um com dados reais da entry
 
-**2. Página Demandas (`src/pages/DemandasPage.tsx`)**
-- Remover campo `webhook_url` do formulário de criação/edição
-- Remover `webhook_url` do `DemandaForm` interface e `emptyForm`
+**2. Criar função utilitária `src/lib/webhook-utils.ts`**
+- Função `fireWebhooksForEvent(eventType, payload)` que:
+  1. Consulta tabela `webhooks` filtrando por `event_type` e `active = true`
+  2. Para cada webhook encontrado, chama `supabase.functions.invoke('fire-webhook', { body: { webhook_id, payload } })`
+  3. Erros são silenciosos (não bloqueia a operação principal)
 
-**3. Tipo Demanda (`src/lib/types.ts`)**
-- Manter `webhook_url` no tipo (coluna ainda existe no banco), mas tornar opcional
-
-**4. Hook `use-demandas.ts`**
-- Não enviar `webhook_url` no create/update (ou enviar string vazia)
-
-**5. Edge Function `notify-demandas/index.ts`**
-- Em vez de usar `d.webhook_url` de cada demanda, buscar todos os webhooks ativos com `event_type = 'demanda.vencida'` da tabela `webhooks`
-- Para cada demanda vencida, enviar POST para **todos** os webhooks registrados com esse event type
-- Registrar logs na tabela `webhook_logs`
-
-**6. Migração SQL**
-- Tornar coluna `webhook_url` nullable/opcional (já tem default `''`, nenhuma mudança necessária no banco)
+**3. Integração nos mutations**
+- `useGetOrCreateReport` → dispara `relatorio.criado` (só quando cria novo, não quando encontra existente)
+- `useCreateEntry` → dispara `relatorio.atualizado` com dados da entry criada
+- `useUpdateEntry` → dispara `relatorio.atualizado` com dados da entry atualizada
 
 ### Fluxo resultante
-1. Usuário registra webhook com evento "Demanda Vencida" na página Documentação → URL salva na tabela `webhooks`
-2. Cron diário executa `notify-demandas` → busca demandas pendentes vencidas + webhooks ativos do tipo `demanda.vencida`
-3. Envia POST para cada webhook com dados de cada demanda
+1. Usuário cria relatório → dados salvos no banco → webhooks `relatorio.criado` disparados automaticamente
+2. Usuário adiciona/edita entry → dados salvos → webhooks `relatorio.atualizado` disparados
+3. Logs registrados automaticamente na tabela `webhook_logs` pela edge function
 
