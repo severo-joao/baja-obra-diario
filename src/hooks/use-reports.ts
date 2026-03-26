@@ -150,11 +150,16 @@ export function useUpdateEntry() {
       if (error) throw error;
       await supabase.from("reports").update({ updated_at: new Date().toISOString() }).eq("id", report_id);
 
-      // Fire webhooks
+      // Fetch report + client info for webhook payload
+      const { data: reportData } = await supabase.from("reports").select("client_id, clients(nome_cliente, nome_empreitada)").eq("id", report_id).single();
+      const client = (reportData as any)?.clients;
+
       await fireWebhooksForEvent("relatorio.atualizado", {
         report_id,
         entry_id: id,
         action: "entry_updated",
+        nome_cliente: client?.nome_cliente ?? "",
+        nome_empreitada: client?.nome_empreitada ?? "",
         ...data,
       });
     },
