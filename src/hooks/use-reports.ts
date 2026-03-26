@@ -116,6 +116,16 @@ export function useCreateEntry() {
       if (error) throw error;
       // Update report's updated_at
       await supabase.from("reports").update({ updated_at: new Date().toISOString() }).eq("id", entry.report_id);
+
+      // Fire webhooks
+      fireWebhooksForEvent("relatorio.atualizado", {
+        report_id: entry.report_id,
+        entry_id: data.id,
+        action: "entry_created",
+        data_relato: entry.data_relato,
+        atividades_dia: entry.atividades_dia,
+      });
+
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["reports"] }),
