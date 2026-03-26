@@ -74,7 +74,6 @@ export default function DemandasPage() {
       sazonal: d.sazonal,
       intervalo_dias: d.intervalo_dias,
       data_notificacao: d.data_notificacao,
-      webhook_url: d.webhook_url,
     });
     setDateValue(new Date(d.data_notificacao + "T12:00:00"));
     setOpen(true);
