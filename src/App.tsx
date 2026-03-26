@@ -29,6 +29,7 @@ const ROUTE_PERMISSION_MAP: Record<string, PermissionKey> = {
   "/ferramentas": "ferramentas",
   "/relatorios": "relatorios",
   "/exportar": "exportar",
+  "/demandas": "demandas",
   "/documentacao": "documentacao",
   "/configuracoes": "configuracoes",
 };
