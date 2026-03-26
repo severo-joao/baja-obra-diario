@@ -1,9 +1,10 @@
 
 
-## Plano: Fundo branco atrás da logo no menu lateral
+## Plano: Aumentar logo no sidebar
 
 ### Alteração
 
-**`src/components/layout/AppSidebar.tsx`**
-- Envolver a `<img>` do logo com um `<div>` que tenha fundo branco e cantos arredondados (`bg-white rounded-lg p-1`), criando contraste com o fundo escuro do sidebar.
+**`src/components/layout/AppSidebar.tsx`** (linha 59-60)
+- Aumentar o container branco para `w-14 h-14` (56px)
+- Aumentar a imagem para `w-[50px] h-[50px]` (~90% do container), removendo o `p-1` do container e usando padding implícito pela diferença de tamanho
 
