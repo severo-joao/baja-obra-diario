@@ -198,6 +198,40 @@ export default function DocumentationPage() {
               <pre className="bg-foreground/5 rounded-lg p-4 text-xs">
                 <code>{`Content-Type: application/json\nX-Webhook-Event: <event_type>\nX-Webhook-Timestamp: <ISO 8601>`}</code>
               </pre>
+
+              <h3 className="text-base font-semibold mt-8 mb-2">Endpoint: Buscar Demandas por Data</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Retorna as demandas pendentes para uma data específica.
+              </p>
+              <h4 className="font-semibold text-sm mb-2">Requisição</h4>
+              <pre className="bg-foreground/5 rounded-lg p-4 text-xs overflow-x-auto">
+                <code>{`GET /functions/v1/get-demandas?data=2026-03-26
+
+Headers:
+  Authorization: Bearer <ANON_KEY>
+  apikey: <ANON_KEY>`}</code>
+              </pre>
+              <h4 className="font-semibold text-sm mt-4 mb-2">Resposta (200)</h4>
+              <pre className="bg-foreground/5 rounded-lg p-4 text-xs overflow-x-auto">
+                <code>{JSON.stringify({
+  demandas: [
+    {
+      id: "uuid",
+      titulo: "Renovar licença ambiental",
+      descricao: "Licença vence em 30 dias",
+      prioridade: "alta",
+      data_notificacao: "2026-03-26",
+      sazonal: true,
+      intervalo_dias: 365,
+      status: "pendente"
+    }
+  ]
+}, null, 2)}</code>
+              </pre>
+              <h4 className="font-semibold text-sm mt-4 mb-2">Erro (400)</h4>
+              <pre className="bg-foreground/5 rounded-lg p-4 text-xs overflow-x-auto">
+                <code>{`{ "error": "Parâmetro 'data' obrigatório no formato YYYY-MM-DD" }`}</code>
+              </pre>
             </CardContent>
           </Card>
         </TabsContent>
