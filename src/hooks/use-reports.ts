@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Report, ReportEntry, ReportImage } from "@/lib/types";
+import { fireWebhooksForEvent } from "@/lib/webhook-utils";
 
 export function useReports() {
   return useQuery({
@@ -85,6 +86,14 @@ export function useGetOrCreateReport() {
         .select("id")
         .single();
       if (error) throw error;
+
+      // Fire webhooks for new report
+      fireWebhooksForEvent("relatorio.criado", {
+        report_id: data.id,
+        client_id: clientId,
+        created_at: new Date().toISOString(),
+      });
+
       return data.id as string;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["reports"] }),
@@ -107,6 +116,16 @@ export function useCreateEntry() {
       if (error) throw error;
       // Update report's updated_at
       await supabase.from("reports").update({ updated_at: new Date().toISOString() }).eq("id", entry.report_id);
+
+      // Fire webhooks
+      fireWebhooksForEvent("relatorio.atualizado", {
+        report_id: entry.report_id,
+        entry_id: data.id,
+        action: "entry_created",
+        data_relato: entry.data_relato,
+        atividades_dia: entry.atividades_dia,
+      });
+
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["reports"] }),
@@ -121,6 +140,14 @@ export function useUpdateEntry() {
       const { error } = await supabase.from("report_entries").update(data).eq("id", id);
       if (error) throw error;
       await supabase.from("reports").update({ updated_at: new Date().toISOString() }).eq("id", report_id);
+
+      // Fire webhooks
+      fireWebhooksForEvent("relatorio.atualizado", {
+        report_id,
+        entry_id: id,
+        action: "entry_updated",
+        ...data,
+      });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["reports"] }),
   });
