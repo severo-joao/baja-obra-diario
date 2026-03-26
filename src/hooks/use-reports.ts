@@ -140,6 +140,14 @@ export function useUpdateEntry() {
       const { error } = await supabase.from("report_entries").update(data).eq("id", id);
       if (error) throw error;
       await supabase.from("reports").update({ updated_at: new Date().toISOString() }).eq("id", report_id);
+
+      // Fire webhooks
+      fireWebhooksForEvent("relatorio.atualizado", {
+        report_id,
+        entry_id: id,
+        action: "entry_updated",
+        ...data,
+      });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["reports"] }),
   });
