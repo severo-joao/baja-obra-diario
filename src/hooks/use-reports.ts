@@ -86,6 +86,14 @@ export function useGetOrCreateReport() {
         .select("id")
         .single();
       if (error) throw error;
+
+      // Fire webhooks for new report
+      fireWebhooksForEvent("relatorio.criado", {
+        report_id: data.id,
+        client_id: clientId,
+        created_at: new Date().toISOString(),
+      });
+
       return data.id as string;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["reports"] }),
