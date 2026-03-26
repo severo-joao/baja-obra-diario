@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key",
 };
 
 Deno.serve(async (req) => {
@@ -11,6 +11,37 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    // Validate x-api-key
+    const apiKey = req.headers.get("x-api-key");
+    if (!apiKey) {
+      return new Response("<h1>Header x-api-key é obrigatório</h1>", {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
+      });
+    }
+
+    const { data: keyRecord, error: keyErr } = await supabase
+      .from("api_keys")
+      .select("id")
+      .eq("key", apiKey)
+      .eq("active", true)
+      .single();
+
+    if (keyErr || !keyRecord) {
+      return new Response("<h1>API key inválida ou inativa</h1>", {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
+      });
+    }
+
+    // Update last_used_at
+    await supabase.from("api_keys").update({ last_used_at: new Date().toISOString() }).eq("id", keyRecord.id);
+
     const url = new URL(req.url);
     const demandaId = url.searchParams.get("id");
     const action = url.searchParams.get("action"); // renovar | lembrar_amanha | aprovar
@@ -21,11 +52,6 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
       });
     }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
 
     const { data: demanda, error: fetchErr } = await supabase
       .from("demandas")
