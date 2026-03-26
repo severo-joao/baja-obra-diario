@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_keys: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          key: string
+          last_used_at: string | null
+          name: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          key?: string
+          last_used_at?: string | null
+          name?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          key?: string
+          last_used_at?: string | null
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           cpf_cnpj: string
