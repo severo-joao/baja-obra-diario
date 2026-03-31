@@ -1,39 +1,69 @@
 
 
-## Plano: Replicar layout A4 do frontend no endpoint export-report
+## Plano: PDF com imagens via processamento assíncrono
 
 ### Problema
-O endpoint `export-report` gera um PDF com layout básico (cabeçalho navy simples, texto corrido). O frontend exporta com layout A4 estilizado: borda navy, linha vertical esquerda, triângulo decorativo no rodapé, logo, info da empresa, seções com títulos uppercase e borda laranja accent, fotos embutidas, e rodapé com endereço.
+Edge Functions têm limite de CPU (~2s). Baixar e converter imagens para base64 estoura esse limite, causando "CPU Time exceeded".
 
 ### Solução
-Reescrever a geração do PDF no `export-report` para replicar o layout do componente `A4ReportPage` + `ReportEntrySection` usando comandos jsPDF:
+Dividir em duas etapas:
 
-### Elementos visuais a replicar por página
-
-1. **Borda navy inset** — `doc.setDrawColor(26,43,74)` retângulo a 3mm das bordas
-2. **Linha vertical esquerda** — linha navy a ~15mm da esquerda, do header ao footer
-3. **Triângulo decorativo** — canto inferior esquerdo, triângulo navy via `doc.triangle()`
-4. **Header** — logo placeholder (texto "BAJA" estilizado, já que não há acesso ao arquivo PNG) + "Baja Engenharia & Construções" + CNPJ à direita
-5. **Título** — "RELATÓRIO DIÁRIO DE OBRA" centralizado, uppercase, navy
-6. **Bloco info** — grid com Obra, Cliente, Data, Relato # em fundo cinza claro
-7. **Seções** — títulos uppercase navy 8pt, seções "Atividades" e "Observações" com borda laranja (#E87722) à esquerda
-8. **Ferramentas** — listadas como badges (retângulos arredondados cinza com texto)
-9. **Fotos** — download das imagens via fetch e embed como JPEG no PDF (grid 2 colunas ou centralizada se 1)
-10. **Rodapé** — endereço da empresa + "Página X de Y"
-
-### Estrutura: 1 entry = 1 página (como no frontend)
-Cada relato ocupa sua própria página A4, igual ao frontend.
+1. **Chamada inicial** (`export-report` com `include_images=true`) → cria um registro na tabela `export_jobs` com status `processing`, inicia o processamento em background via `EdgeRuntime.waitUntil()`, e retorna imediatamente o `job_id`
+2. **Polling** (`export-report?job_id=XXX`) → o cliente consulta o status do job. Quando `completed`, retorna a URL do PDF armazenado no storage
 
 ### Alterações
 
-**`supabase/functions/export-report/index.ts`** — Reescrita completa da geração PDF:
-- Cada entry gera uma nova página com o layout completo (borda, linha, triângulo, header, footer)
-- Download e embed de imagens reais (fetch URL → arrayBuffer → base64 → addImage)
-- Seções com accent border laranja para Atividades e Observações
-- Paginação "Página X de Y"
-- Fallback: se imagem falhar no download, mostrar URL como texto
+**1. Migração SQL — tabela `export_jobs` + bucket `export-pdfs`**
+```sql
+CREATE TABLE public.export_jobs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  status text NOT NULL DEFAULT 'processing', -- processing, completed, failed
+  client_id uuid REFERENCES public.clients(id),
+  file_path text,
+  error text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
 
-### Limitações
-- Fonte será Helvetica (jsPDF built-in), não Inter — visualmente próximo mas não idêntico
-- Logo: será buscado do storage público ou renderizado como texto estilizado se não disponível no servidor
+ALTER TABLE public.export_jobs ENABLE ROW LEVEL SECURITY;
+
+-- Bucket para armazenar os PDFs gerados
+INSERT INTO storage.buckets (id, name, public) VALUES ('export-pdfs', 'export-pdfs', true);
+```
+
+**2. Reescrever `supabase/functions/export-report/index.ts`**
+
+Novo fluxo:
+- Se `include_images=true`: cria job → usa `EdgeRuntime.waitUntil()` para processar em background (baixar imagens, gerar PDF, salvar no bucket `export-pdfs`) → retorna `{ job_id, status: "processing" }`
+- Se `job_id` presente: consulta status do job → se completed, retorna `{ status: "completed", download_url: "..." }`
+- Se `include_images` não é `true`: gera PDF sem imagens e retorna diretamente (comportamento atual)
+
+O processamento em background:
+1. Baixa cada imagem sequencialmente
+2. Gera o PDF com `jsPDF` (layout A4 completo)
+3. Faz upload do PDF para `storage/export-pdfs/{job_id}.pdf`
+4. Atualiza o job para `completed` com o `file_path`
+5. Se falhar, marca como `failed` com mensagem de erro
+
+**3. Atualizar documentação**
+- Explicar o fluxo assíncrono com exemplos de polling
+
+### Fluxo de uso externo
+```
+# 1. Iniciar exportação
+POST /export-report?client_id=X&include_images=true
+→ { "job_id": "abc-123", "status": "processing" }
+
+# 2. Verificar status (polling a cada 3-5s)
+GET /export-report?job_id=abc-123
+→ { "status": "processing" }
+→ { "status": "completed", "download_url": "https://...export-pdfs/abc-123.pdf" }
+```
+
+### Arquivos
+| Arquivo | Ação |
+|---------|------|
+| Migração SQL | Criar tabela `export_jobs` + bucket |
+| `supabase/functions/export-report/index.ts` | Reescrever com fluxo assíncrono |
+| `src/pages/DocumentationPage.tsx` | Documentar fluxo async |
 
