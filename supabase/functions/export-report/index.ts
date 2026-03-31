@@ -100,20 +100,40 @@ function drawWrappedText(doc: jsPDF, text: string, x: number, y: number, maxWidt
   return y;
 }
 
+function getResizedUrl(originalUrl: string): string {
+  // Use Supabase Storage render transform for smaller images
+  // Replace /object/public/ with /render/image/public/ and add resize params
+  const transformed = originalUrl.replace(
+    "/object/public/",
+    "/render/image/public/"
+  );
+  const sep = transformed.includes("?") ? "&" : "?";
+  return `${transformed}${sep}width=400&quality=50`;
+}
+
 async function fetchImageAsBase64(url: string): Promise<{ data: string; format: string } | null> {
   try {
-    const resp = await fetch(url);
-    if (!resp.ok) return null;
+    // Try resized version first, fall back to original
+    const resizedUrl = getResizedUrl(url);
+    let resp = await fetch(resizedUrl);
+    if (!resp.ok) {
+      resp = await fetch(url);
+      if (!resp.ok) return null;
+    }
     const buf = await resp.arrayBuffer();
+    // Skip images larger than 500KB even after resize
+    if (buf.byteLength > 500_000) return null;
     const bytes = new Uint8Array(buf);
     let binary = "";
-    for (let i = 0; i < bytes.length; i++) {
-      binary += String.fromCharCode(bytes[i]);
+    const CHUNK = 8192;
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      const slice = bytes.subarray(i, Math.min(i + CHUNK, bytes.length));
+      binary += String.fromCharCode(...slice);
     }
     const b64 = btoa(binary);
-    const ct = resp.headers.get("content-type") || "";
+    const ct = resp.headers.get("content-type") || "image/jpeg";
     const format = ct.includes("png") ? "PNG" : "JPEG";
-    return { data: `data:${ct};base64,${b64}`, format };
+    return { data: `data:image/jpeg;base64,${b64}`, format: "JPEG" };
   } catch {
     return null;
   }
@@ -241,7 +261,9 @@ async function generatePdf(data: ReportData, includeImages: boolean): Promise<Ar
           const imgW = entryImages.length === 1 ? CONTENT_WIDTH * 0.6 : (CONTENT_WIDTH - 4) / 2;
           let imgX = CONTENT_LEFT;
           let imgCount = 0;
-          for (const img of entryImages) {
+          const maxImages = 4; // Limit to prevent memory overflow
+          const imagesToProcess = entryImages.slice(0, maxImages);
+          for (const img of imagesToProcess) {
             const imgData = await fetchImageAsBase64(img.url);
             if (imgData) {
               if (entryImages.length === 1) {
