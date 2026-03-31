@@ -392,28 +392,58 @@ Parâmetros:
 
               <h3 className="text-base font-semibold mt-8 mb-2">Endpoint: Exportar Relatório em PDF</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Gera e retorna um PDF com os relatos diários de uma obra em um período específico.
+                Gera um PDF com os relatos diários de uma obra. Suporta dois modos: <strong>síncrono</strong> (sem imagens, retorna PDF direto) e <strong>assíncrono</strong> (com imagens, retorna job_id para polling).
               </p>
-              <h4 className="font-semibold text-sm mb-2">Requisição</h4>
+
+              <h4 className="font-semibold text-sm mb-2">Modo 1 — Sem imagens (síncrono)</h4>
               <pre className="bg-foreground/5 rounded-lg p-4 text-xs overflow-x-auto">
-                <code>{`GET /functions/v1/export-report?client_id=UUID&data_inicio=YYYY-MM-DD&data_fim=YYYY-MM-DD&include_images=true
+                <code>{`GET /functions/v1/export-report?client_id=UUID&data_inicio=YYYY-MM-DD&data_fim=YYYY-MM-DD
 
 Headers:
   x-api-key: baja_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
-Parâmetros:
-  client_id (obrigatório): ID da obra/cliente
-  data_inicio (opcional): Data inicial dos relatos (YYYY-MM-DD)
-  data_fim (opcional): Data final dos relatos (YYYY-MM-DD)
-  include_images (opcional): "true" para embutir fotos no PDF (padrão: false, mostra URLs)`}</code>
+Resposta: application/pdf (download direto)`}</code>
               </pre>
-              <h4 className="font-semibold text-sm mt-4 mb-2">Resposta (200)</h4>
-              <pre className="bg-foreground/5 rounded-lg p-4 text-xs overflow-x-auto">
-                <code>{`Content-Type: application/pdf
-Content-Disposition: attachment; filename="relatorio-Nome_Empreitada.pdf"
 
-(arquivo PDF binário)`}</code>
+              <h4 className="font-semibold text-sm mt-6 mb-2">Modo 2 — Com imagens (assíncrono)</h4>
+              <p className="text-sm text-muted-foreground mb-3">
+                Como baixar e embutir imagens pode demorar, o endpoint processa em background e retorna um <code>job_id</code> para consulta.
+              </p>
+              <pre className="bg-foreground/5 rounded-lg p-4 text-xs overflow-x-auto">
+                <code>{`# 1. Iniciar exportação
+GET /functions/v1/export-report?client_id=UUID&include_images=true&data_inicio=YYYY-MM-DD&data_fim=YYYY-MM-DD
+
+Headers:
+  x-api-key: baja_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+Resposta (200):
+{ "job_id": "abc-123", "status": "processing" }
+
+# 2. Consultar status (polling a cada 3-5s)
+GET /functions/v1/export-report?job_id=abc-123
+
+Headers:
+  x-api-key: baja_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+Resposta (processando):
+{ "status": "processing", "job_id": "abc-123" }
+
+Resposta (concluído):
+{ "status": "completed", "download_url": "https://...export-pdfs/abc-123.pdf" }
+
+Resposta (falhou):
+{ "status": "failed", "error": "mensagem de erro" }`}</code>
               </pre>
+
+              <h4 className="font-semibold text-sm mt-4 mb-2">Parâmetros</h4>
+              <pre className="bg-foreground/5 rounded-lg p-4 text-xs overflow-x-auto">
+                <code>{`client_id (obrigatório): ID da obra/cliente
+data_inicio (opcional): Data inicial dos relatos (YYYY-MM-DD)
+data_fim (opcional): Data final dos relatos (YYYY-MM-DD)
+include_images (opcional): "true" para embutir fotos (modo assíncrono)
+job_id (para polling): ID do job retornado na chamada inicial`}</code>
+              </pre>
+
               <h4 className="font-semibold text-sm mt-4 mb-2">Erro (404)</h4>
               <pre className="bg-foreground/5 rounded-lg p-4 text-xs overflow-x-auto">
                 <code>{`{ "error": "Cliente não encontrado" }`}</code>
