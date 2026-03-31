@@ -134,6 +134,44 @@ export type Database = {
         }
         Relationships: []
       }
+      export_jobs: {
+        Row: {
+          client_id: string | null
+          created_at: string | null
+          error: string | null
+          file_path: string | null
+          id: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string | null
+          error?: string | null
+          file_path?: string | null
+          id?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string | null
+          error?: string | null
+          file_path?: string | null
+          id?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "export_jobs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invites: {
         Row: {
           created_at: string
