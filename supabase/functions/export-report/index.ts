@@ -176,6 +176,7 @@ Deno.serve(async (req) => {
     const clientId = url.searchParams.get("client_id");
     const dataInicio = url.searchParams.get("data_inicio");
     const dataFim = url.searchParams.get("data_fim");
+    const includeImages = url.searchParams.get("include_images") === "true";
 
     if (!clientId) {
       return new Response(
