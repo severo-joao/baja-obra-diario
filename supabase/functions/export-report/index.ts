@@ -176,6 +176,7 @@ Deno.serve(async (req) => {
     const clientId = url.searchParams.get("client_id");
     const dataInicio = url.searchParams.get("data_inicio");
     const dataFim = url.searchParams.get("data_fim");
+    const includeImages = url.searchParams.get("include_images") === "true";
 
     if (!clientId) {
       return new Response(
@@ -392,54 +393,58 @@ Deno.serve(async (req) => {
         if (entryImages.length > 0) {
           y = drawSectionTitle(doc, "Registros Fotográficos", y) + 3;
 
-          const maxImgH = entryImages.length === 1 ? 80 : 50;
-          const imgW = entryImages.length === 1 ? CONTENT_WIDTH * 0.6 : (CONTENT_WIDTH - 4) / 2;
+          if (includeImages) {
+            const maxImgH = entryImages.length === 1 ? 80 : 50;
+            const imgW = entryImages.length === 1 ? CONTENT_WIDTH * 0.6 : (CONTENT_WIDTH - 4) / 2;
+            let imgX = CONTENT_LEFT;
+            let imgCount = 0;
 
-          let imgX = CONTENT_LEFT;
-          let imgCount = 0;
-
-          for (const img of entryImages) {
-            const imgData = await fetchImageAsBase64(img.url);
-            if (imgData) {
-              if (entryImages.length === 1) {
-                imgX = CONTENT_LEFT + (CONTENT_WIDTH - imgW) / 2;
+            for (const img of entryImages) {
+              const imgData = await fetchImageAsBase64(img.url);
+              if (imgData) {
+                if (entryImages.length === 1) {
+                  imgX = CONTENT_LEFT + (CONTENT_WIDTH - imgW) / 2;
+                } else {
+                  imgX = CONTENT_LEFT + (imgCount % 2) * (imgW + 4);
+                }
+                if (y + maxImgH > PH - 40) {
+                  doc.setFontSize(7);
+                  doc.setTextColor(...GRAY_TEXT);
+                  doc.text(`+ ${entryImages.length - imgCount} foto(s) não exibidas`, CONTENT_LEFT, y);
+                  break;
+                }
+                try {
+                  doc.addImage(imgData.data, imgData.format, imgX, y, imgW, maxImgH);
+                } catch {
+                  doc.setFontSize(7);
+                  doc.setTextColor(...GRAY_TEXT);
+                  doc.text(`${img.filename}: ${img.url}`, CONTENT_LEFT, y + 4);
+                }
+                imgCount++;
+                if (entryImages.length === 1 || imgCount % 2 === 0) {
+                  y += maxImgH + 3;
+                }
               } else {
-                imgX = CONTENT_LEFT + (imgCount % 2) * (imgW + 4);
-              }
-
-              // Check if we need space
-              if (y + maxImgH > PH - 40) {
-                // Skip remaining images to avoid overflow
                 doc.setFontSize(7);
-                doc.setTextColor(...GRAY_TEXT);
-                doc.text(`+ ${entryImages.length - imgCount} foto(s) não exibidas`, CONTENT_LEFT, y);
-                break;
+                doc.setTextColor(40, 100, 180);
+                doc.text(`• ${img.filename}: ${img.url}`, CONTENT_LEFT, y);
+                y += 4;
+                imgCount++;
               }
-
-              try {
-                doc.addImage(imgData.data, imgData.format, imgX, y, imgW, maxImgH);
-              } catch {
-                doc.setFontSize(7);
-                doc.setTextColor(...GRAY_TEXT);
-                doc.text(`${img.filename}: ${img.url}`, CONTENT_LEFT, y + 4);
-              }
-
-              imgCount++;
-              if (entryImages.length === 1 || imgCount % 2 === 0) {
-                y += maxImgH + 3;
-              }
-            } else {
-              // Fallback: show URL
-              doc.setFontSize(7);
-              doc.setTextColor(40, 100, 180);
-              doc.text(`• ${img.filename}: ${img.url}`, CONTENT_LEFT, y);
-              y += 4;
-              imgCount++;
             }
-          }
-          // Handle odd image in grid
-          if (entryImages.length > 1 && imgCount % 2 !== 0) {
-            y += maxImgH + 3;
+            if (entryImages.length > 1 && imgCount % 2 !== 0) {
+              y += maxImgH + 3;
+            }
+          } else {
+            // Show URLs only (fast, no CPU overhead)
+            doc.setFontSize(8);
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(40, 100, 180);
+            entryImages.forEach((img) => {
+              doc.text(`• ${img.filename || "foto"}: ${img.url}`, CONTENT_LEFT, y);
+              y += 4;
+            });
+            doc.setTextColor(0, 0, 0);
           }
         }
 
