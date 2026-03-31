@@ -396,7 +396,7 @@ Parâmetros:
               </p>
               <h4 className="font-semibold text-sm mb-2">Requisição</h4>
               <pre className="bg-foreground/5 rounded-lg p-4 text-xs overflow-x-auto">
-                <code>{`GET /functions/v1/export-report?client_id=UUID&data_inicio=YYYY-MM-DD&data_fim=YYYY-MM-DD
+                <code>{`GET /functions/v1/export-report?client_id=UUID&data_inicio=YYYY-MM-DD&data_fim=YYYY-MM-DD&include_images=true
 
 Headers:
   x-api-key: baja_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -404,7 +404,8 @@ Headers:
 Parâmetros:
   client_id (obrigatório): ID da obra/cliente
   data_inicio (opcional): Data inicial dos relatos (YYYY-MM-DD)
-  data_fim (opcional): Data final dos relatos (YYYY-MM-DD)`}</code>
+  data_fim (opcional): Data final dos relatos (YYYY-MM-DD)
+  include_images (opcional): "true" para embutir fotos no PDF (padrão: false, mostra URLs)`}</code>
               </pre>
               <h4 className="font-semibold text-sm mt-4 mb-2">Resposta (200)</h4>
               <pre className="bg-foreground/5 rounded-lg p-4 text-xs overflow-x-auto">
