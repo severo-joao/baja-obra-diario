@@ -1,49 +1,55 @@
 
 
-## Plano: Sistema de API Keys na Documentação
+## Plano: Endpoints para listar obras e exportar relatório em PDF
 
 ### Resumo
-Criar uma tabela `api_keys` para que o usuário possa gerar, visualizar e revogar chaves de API personalizadas. As edge functions públicas (`get-demandas`, `demanda-action`) passarão a validar essas chaves no header `x-api-key` em vez de depender diretamente da anon key.
+Dois novos endpoints protegidos por `x-api-key`:
+1. **`get-clients`** — lista obras ativas com dados cadastrais
+2. **`export-report`** — gera e retorna PDF do relatório de uma obra (por `client_id` + filtros de data)
 
-### Alterações
+### 1. Edge Function `get-clients`
+- `GET /functions/v1/get-clients?status=ativa` (parâmetro opcional, default: `ativa`)
+- Retorna JSON com array de clientes e seus campos cadastrais
+- Validação de `x-api-key` (mesmo padrão do `get-demandas`)
 
-**1. Migração SQL — tabela `api_keys`**
-```sql
-CREATE TABLE public.api_keys (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  name text NOT NULL DEFAULT '',
-  key text NOT NULL DEFAULT ('baja_' || replace(gen_random_uuid()::text, '-', '')),
-  created_at timestamptz NOT NULL DEFAULT now(),
-  last_used_at timestamptz,
-  active boolean NOT NULL DEFAULT true
-);
-ALTER TABLE public.api_keys ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users manage own keys" ON public.api_keys
-  FOR ALL TO authenticated USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+**Resposta exemplo:**
+```json
+{
+  "clients": [
+    {
+      "id": "uuid",
+      "nome_cliente": "João Silva",
+      "nome_empreitada": "Residencial Mar Azul",
+      "endereco_obra": "Rua X, 123",
+      "status": "ativa",
+      "data_inicio": "2026-01-15",
+      "data_prevista_conclusao": "2026-12-30",
+      ...
+    }
+  ]
+}
 ```
 
-**2. Nova aba "API Keys" na página Documentação (`src/pages/DocumentationPage.tsx`)**
-- Adicionar aba com ícone de chave entre Webhooks e Documentação
-- Formulário: campo "Nome da chave" + botão "Gerar"
-- Lista de chaves existentes com: nome, chave (parcialmente oculta com botão copiar), data de criação, status ativo/inativo, botão revogar
-- Ao gerar, mostrar a chave completa apenas uma vez com destaque
+### 2. Edge Function `export-report`
+- `GET /functions/v1/export-report?client_id=UUID&data_inicio=YYYY-MM-DD&data_fim=YYYY-MM-DD`
+- Busca report + entries + images do cliente no período
+- Gera PDF server-side usando `jsPDF` (disponível em Deno via ESM)
+- Retorna `Content-Type: application/pdf` com o arquivo binário
+- O PDF terá layout estruturado com: cabeçalho da empresa, dados da obra/cliente, e cada entry com data, equipe, clima, atividades, observações e URLs das fotos
 
-**3. Hook `src/hooks/use-api-keys.ts`**
-- CRUD: `useApiKeys()`, `useCreateApiKey()`, `useDeleteApiKey()`, `useToggleApiKey()`
-- Queries na tabela `api_keys`
+**Limitação**: Como não há DOM no servidor, o PDF será gerado programaticamente (texto formatado com jsPDF), sem renderizar HTML. O layout será limpo e profissional mas não idêntico pixel-a-pixel ao do frontend.
 
-**4. Atualizar edge functions para validar `x-api-key`**
-- `get-demandas/index.ts` e `demanda-action/index.ts`: verificar header `x-api-key`, buscar na tabela `api_keys` se está ativo, rejeitar com 401 se inválido
-- Atualizar `last_used_at` a cada uso válido
+### 3. Documentação
+- Adicionar ambos endpoints na aba Docs da página Documentação com exemplos de uso
 
-**5. Atualizar documentação (aba Docs)**
-- Seção "Autenticação" explicando como usar o header `x-api-key`
-- Exemplo de chamada com a chave
+### Arquivos
+| Arquivo | Ação |
+|---------|------|
+| `supabase/functions/get-clients/index.ts` | Criar |
+| `supabase/functions/export-report/index.ts` | Criar |
+| `src/pages/DocumentationPage.tsx` | Adicionar docs dos 2 endpoints |
 
-### Fluxo
-1. Usuário gera API key na aba "API Keys" → chave salva no banco
-2. Usuário copia a chave e usa no header `x-api-key` das chamadas
-3. Edge functions validam a chave antes de processar a requisição
-4. Usuário pode revogar chaves a qualquer momento
+### Fluxo externo automatizado
+1. Chamar `get-clients` → obter lista de obras ativas com IDs
+2. Para cada obra, chamar `export-report?client_id=ID&data_inicio=X&data_fim=Y` → receber PDF
 
