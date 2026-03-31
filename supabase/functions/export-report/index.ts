@@ -261,7 +261,9 @@ async function generatePdf(data: ReportData, includeImages: boolean): Promise<Ar
           const imgW = entryImages.length === 1 ? CONTENT_WIDTH * 0.6 : (CONTENT_WIDTH - 4) / 2;
           let imgX = CONTENT_LEFT;
           let imgCount = 0;
-          for (const img of entryImages) {
+          const maxImages = 4; // Limit to prevent memory overflow
+          const imagesToProcess = entryImages.slice(0, maxImages);
+          for (const img of imagesToProcess) {
             const imgData = await fetchImageAsBase64(img.url);
             if (imgData) {
               if (entryImages.length === 1) {
