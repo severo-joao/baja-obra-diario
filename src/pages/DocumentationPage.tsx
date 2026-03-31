@@ -355,6 +355,73 @@ Headers:
               <pre className="bg-foreground/5 rounded-lg p-4 text-xs overflow-x-auto">
                 <code>{`{ "error": "Parâmetro 'data' obrigatório no formato YYYY-MM-DD" }`}</code>
               </pre>
+
+              <h3 className="text-base font-semibold mt-8 mb-2">Endpoint: Listar Obras (Clientes)</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Retorna a lista de obras cadastradas com dados cadastrais.
+              </p>
+              <h4 className="font-semibold text-sm mb-2">Requisição</h4>
+              <pre className="bg-foreground/5 rounded-lg p-4 text-xs overflow-x-auto">
+                <code>{`GET /functions/v1/get-clients?status=ativa
+
+Headers:
+  x-api-key: baja_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+Parâmetros:
+  status (opcional): "ativa" (default), "concluida", "pausada" ou "todas"`}</code>
+              </pre>
+              <h4 className="font-semibold text-sm mt-4 mb-2">Resposta (200)</h4>
+              <pre className="bg-foreground/5 rounded-lg p-4 text-xs overflow-x-auto">
+                <code>{JSON.stringify({
+  clients: [
+    {
+      id: "uuid",
+      nome_cliente: "João Silva",
+      nome_empreitada: "Residencial Mar Azul",
+      endereco_obra: "Rua X, 123",
+      status: "ativa",
+      data_inicio: "2026-01-15",
+      data_prevista_conclusao: "2026-12-30",
+      cpf_cnpj: "123.456.789-00",
+      telefone: "(11) 99999-0000",
+      email: "joao@email.com"
+    }
+  ]
+}, null, 2)}</code>
+              </pre>
+
+              <h3 className="text-base font-semibold mt-8 mb-2">Endpoint: Exportar Relatório em PDF</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Gera e retorna um PDF com os relatos diários de uma obra em um período específico.
+              </p>
+              <h4 className="font-semibold text-sm mb-2">Requisição</h4>
+              <pre className="bg-foreground/5 rounded-lg p-4 text-xs overflow-x-auto">
+                <code>{`GET /functions/v1/export-report?client_id=UUID&data_inicio=YYYY-MM-DD&data_fim=YYYY-MM-DD
+
+Headers:
+  x-api-key: baja_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+Parâmetros:
+  client_id (obrigatório): ID da obra/cliente
+  data_inicio (opcional): Data inicial dos relatos (YYYY-MM-DD)
+  data_fim (opcional): Data final dos relatos (YYYY-MM-DD)`}</code>
+              </pre>
+              <h4 className="font-semibold text-sm mt-4 mb-2">Resposta (200)</h4>
+              <pre className="bg-foreground/5 rounded-lg p-4 text-xs overflow-x-auto">
+                <code>{`Content-Type: application/pdf
+Content-Disposition: attachment; filename="relatorio-Nome_Empreitada.pdf"
+
+(arquivo PDF binário)`}</code>
+              </pre>
+              <h4 className="font-semibold text-sm mt-4 mb-2">Erro (404)</h4>
+              <pre className="bg-foreground/5 rounded-lg p-4 text-xs overflow-x-auto">
+                <code>{`{ "error": "Cliente não encontrado" }`}</code>
+              </pre>
+
+              <h3 className="text-base font-semibold mt-8 mb-2">URL Base da API</h3>
+              <pre className="bg-foreground/5 rounded-lg p-4 text-xs overflow-x-auto">
+                <code>{`https://elooeyntfqkygrwmifsv.supabase.co/functions/v1/`}</code>
+              </pre>
             </CardContent>
           </Card>
         </TabsContent>
