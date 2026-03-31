@@ -7,35 +7,133 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-api-key, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const WEATHER_MAP: Record<string, string> = {
-  ensolarado: "Ensolarado",
-  nublado: "Nublado",
-  chuvoso: "Chuvoso",
-  parcialmente_nublado: "Parcialmente Nublado",
+const WEATHER_MAP: Record<string, { label: string; icon: string }> = {
+  ensolarado: { label: "Ensolarado", icon: "☀️" },
+  nublado: { label: "Nublado", icon: "☁️" },
+  chuvoso: { label: "Chuvoso", icon: "🌧️" },
+  parcialmente_nublado: { label: "Parcialmente Nublado", icon: "⛅" },
 };
 
-function addHeader(doc: jsPDF, clientName: string, projectName: string, pageNum: number) {
-  const pageWidth = doc.internal.pageSize.getWidth();
-  doc.setFillColor(23, 37, 63);
-  doc.rect(0, 0, pageWidth, 28, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(14);
-  doc.setFont("helvetica", "bold");
-  doc.text("RELATÓRIO DIÁRIO DE OBRA", pageWidth / 2, 12, { align: "center" });
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.text(`${projectName} — ${clientName}`, pageWidth / 2, 20, { align: "center" });
-  doc.setTextColor(0, 0, 0);
+const NAVY = [26, 43, 74] as const;
+const ORANGE = [232, 119, 34] as const;
+const GRAY_TEXT = [107, 114, 128] as const;
+const LIGHT_BG = [248, 249, 250] as const;
+
+const PW = 210; // A4 width mm
+const PH = 297; // A4 height mm
+const BORDER_INSET = 5;
+const LEFT_LINE_X = 18;
+const MARGIN_LEFT = 24;
+const MARGIN_RIGHT = 15;
+const CONTENT_LEFT = MARGIN_LEFT + 2;
+const CONTENT_WIDTH = PW - CONTENT_LEFT - MARGIN_RIGHT;
+
+function drawPageFrame(doc: jsPDF) {
+  // Navy border inset
+  doc.setDrawColor(...NAVY);
+  doc.setLineWidth(0.7);
+  doc.rect(BORDER_INSET, BORDER_INSET, PW - BORDER_INSET * 2, PH - BORDER_INSET * 2);
+
+  // Left vertical line
+  doc.setLineWidth(0.5);
+  doc.line(LEFT_LINE_X, BORDER_INSET, LEFT_LINE_X, PH - BORDER_INSET);
+
+  // Footer triangle decoration
+  doc.setFillColor(...NAVY);
+  doc.triangle(BORDER_INSET, PH - BORDER_INSET, BORDER_INSET, PH - BORDER_INSET - 30, BORDER_INSET + 20, PH - BORDER_INSET, "F");
 }
 
-function addFooter(doc: jsPDF, pageNum: number) {
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  doc.setFontSize(7);
-  doc.setTextColor(130, 130, 130);
-  doc.text(`Página ${pageNum}`, pageWidth / 2, pageHeight - 8, { align: "center" });
-  doc.text(`Gerado em ${new Date().toLocaleDateString("pt-BR")}`, pageWidth - 15, pageHeight - 8, { align: "right" });
+function drawHeader(doc: jsPDF) {
+  // Logo placeholder - "BAJA" text block
+  doc.setFillColor(...NAVY);
+  doc.roundedRect(CONTENT_LEFT, 10, 28, 28, 2, 2, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.text("BAJA", CONTENT_LEFT + 14, 27, { align: "center" });
+
+  // Company info right
+  doc.setTextColor(...NAVY);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("Baja Engenharia & Construções", PW - MARGIN_RIGHT, 18, { align: "right" });
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...GRAY_TEXT);
+  doc.text("CNPJ: 34.526.647/0001-73", PW - MARGIN_RIGHT, 24, { align: "right" });
+
+  // Separator line under header
+  doc.setDrawColor(209, 213, 219);
+  doc.setLineWidth(0.3);
+  doc.line(CONTENT_LEFT, 32, PW - MARGIN_RIGHT, 32);
+}
+
+function drawFooter(doc: jsPDF, pageNum: number, totalPages: number) {
+  const footerY = PH - BORDER_INSET - 18;
+  doc.setFontSize(8);
+  doc.setTextColor(...GRAY_TEXT);
+  doc.setFont("helvetica", "normal");
+  doc.text("Copacabana | Rio de Janeiro", CONTENT_LEFT + 10, footerY);
+  doc.text(
+    "Rua Ministro de Castro | 15 1118  |  www.bajaengenharia.com.br  |  contato@bajaengenharia.com.br",
+    CONTENT_LEFT + 10,
+    footerY + 4
+  );
+  doc.text(`Página ${pageNum} de ${totalPages}`, PW / 2, footerY + 10, { align: "center" });
+}
+
+function drawSectionTitle(doc: jsPDF, title: string, y: number, accent = false): number {
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...NAVY);
+  doc.text(title.toUpperCase(), CONTENT_LEFT, y);
+  y += 1;
+  if (accent) {
+    doc.setDrawColor(...ORANGE);
+    doc.setLineWidth(0.8);
+  }
+  return y;
+}
+
+function drawWrappedText(doc: jsPDF, text: string, x: number, y: number, maxWidth: number, accent = false): number {
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
   doc.setTextColor(0, 0, 0);
+  const lines: string[] = doc.splitTextToSize(text, maxWidth - (accent ? 4 : 0));
+  const textX = accent ? x + 4 : x;
+
+  if (accent) {
+    // Draw orange left border for the text block
+    const blockHeight = lines.length * 4.2;
+    doc.setDrawColor(...ORANGE);
+    doc.setLineWidth(0.8);
+    doc.line(x, y - 1, x, y + blockHeight - 1);
+  }
+
+  lines.forEach((line: string) => {
+    doc.text(line, textX, y);
+    y += 4.2;
+  });
+  return y;
+}
+
+async function fetchImageAsBase64(url: string): Promise<{ data: string; format: string } | null> {
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) return null;
+    const buf = await resp.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const b64 = btoa(binary);
+    const ct = resp.headers.get("content-type") || "";
+    const format = ct.includes("png") ? "PNG" : "JPEG";
+    return { data: `data:${ct};base64,${b64}`, format };
+  } catch {
+    return null;
+  }
 }
 
 Deno.serve(async (req) => {
@@ -96,10 +194,7 @@ Deno.serve(async (req) => {
 
     // Fetch client
     const { data: client, error: clientErr } = await supabase
-      .from("clients")
-      .select("*")
-      .eq("id", clientId)
-      .single();
+      .from("clients").select("*").eq("id", clientId).single();
 
     if (clientErr || !client) {
       return new Response(
@@ -110,10 +205,7 @@ Deno.serve(async (req) => {
 
     // Fetch report
     const { data: report } = await supabase
-      .from("reports")
-      .select("id")
-      .eq("client_id", clientId)
-      .single();
+      .from("reports").select("id").eq("client_id", clientId).single();
 
     if (!report) {
       return new Response(
@@ -122,24 +214,18 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fetch entries with date filters
+    // Fetch entries
     let entriesQuery = supabase
-      .from("report_entries")
-      .select("*")
-      .eq("report_id", report.id)
+      .from("report_entries").select("*").eq("report_id", report.id)
       .order("data_relato", { ascending: true });
-
     if (dataInicio) entriesQuery = entriesQuery.gte("data_relato", dataInicio);
     if (dataFim) entriesQuery = entriesQuery.lte("data_relato", dataFim);
-
     const { data: entries, error: entriesErr } = await entriesQuery;
     if (entriesErr) throw entriesErr;
 
     // Fetch images
     const { data: images } = await supabase
-      .from("report_images")
-      .select("*")
-      .eq("report_id", report.id);
+      .from("report_images").select("*").eq("report_id", report.id);
 
     const imagesByEntry = new Map<string, { url: string; filename: string }[]>();
     (images ?? []).forEach((img) => {
@@ -155,168 +241,211 @@ Deno.serve(async (req) => {
     const uniqueToolIds = [...new Set(allToolIds)];
     let toolsMap = new Map<string, string>();
     if (uniqueToolIds.length > 0) {
-      const { data: tools } = await supabase
-        .from("tools")
-        .select("id, nome")
-        .in("id", uniqueToolIds);
+      const { data: tools } = await supabase.from("tools").select("id, nome").in("id", uniqueToolIds);
       (tools ?? []).forEach((t) => toolsMap.set(t.id, t.nome));
     }
 
-    // Generate PDF
+    const totalPages = (entries ?? []).length || 1;
+
+    // Generate PDF — one page per entry
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 15;
-    const contentWidth = pageWidth - margin * 2;
-    let y = 0;
-    let pageNum = 1;
 
-    const ensureSpace = (needed: number) => {
-      const pageHeight = doc.internal.pageSize.getHeight();
-      if (y + needed > pageHeight - 15) {
-        addFooter(doc, pageNum);
-        doc.addPage();
-        pageNum++;
-        addHeader(doc, client.nome_cliente, client.nome_empreitada, pageNum);
-        y = 35;
-      }
-    };
-
-    // Page 1 - Cover info
-    addHeader(doc, client.nome_cliente, client.nome_empreitada, pageNum);
-    y = 38;
-
-    // Client info box
-    doc.setFillColor(245, 245, 245);
-    doc.roundedRect(margin, y, contentWidth, 38, 2, 2, "F");
-    y += 7;
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.text("DADOS DA OBRA", margin + 4, y);
-    y += 6;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    const infoLines = [
-      `Cliente: ${client.nome_cliente}`,
-      `Empreitada: ${client.nome_empreitada}`,
-      `Endereço: ${client.endereco_obra || "—"}`,
-      `Período: ${dataInicio || "início"} a ${dataFim || "atual"}`,
-    ];
-    infoLines.forEach((line) => {
-      doc.text(line, margin + 4, y);
-      y += 5;
-    });
-    y += 8;
-
-    doc.setFontSize(9);
-    doc.setTextColor(100, 100, 100);
-    doc.text(`Total de relatos: ${(entries ?? []).length}`, margin, y);
-    doc.setTextColor(0, 0, 0);
-    y += 10;
-
-    // Entries
-    (entries ?? []).forEach((entry, idx) => {
-      ensureSpace(50);
-
-      // Entry header
-      doc.setFillColor(23, 37, 63);
-      doc.roundedRect(margin, y, contentWidth, 8, 1, 1, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(9);
+    if (!entries || entries.length === 0) {
+      // Single empty page
+      drawPageFrame(doc);
+      drawHeader(doc);
+      doc.setFontSize(14);
+      doc.setTextColor(...NAVY);
       doc.setFont("helvetica", "bold");
-      const dateFormatted = entry.data_relato;
-      doc.text(`Relato ${idx + 1} — ${dateFormatted}`, margin + 4, y + 5.5);
-      doc.setTextColor(0, 0, 0);
-      y += 12;
-
-      // Meta row
-      ensureSpace(12);
-      doc.setFontSize(8);
-      doc.setFont("helvetica", "bold");
-      doc.text("Clima:", margin, y);
+      doc.text("RELATÓRIO DIÁRIO DE OBRA", PW / 2, 50, { align: "center" });
+      doc.setFontSize(11);
       doc.setFont("helvetica", "normal");
-      doc.text(WEATHER_MAP[entry.condicoes_climaticas] || entry.condicoes_climaticas, margin + 14, y);
+      doc.text("Nenhum relato encontrado no período selecionado.", PW / 2, 65, { align: "center" });
+      drawFooter(doc, 1, 1);
+    } else {
+      for (let idx = 0; idx < entries.length; idx++) {
+        const entry = entries[idx];
+        if (idx > 0) doc.addPage();
+        const pageNum = idx + 1;
 
-      if (entry.equipe) {
+        drawPageFrame(doc);
+        drawHeader(doc);
+
+        let y = 40;
+
+        // Title
+        doc.setFontSize(14);
         doc.setFont("helvetica", "bold");
-        doc.text("Equipe:", margin + 60, y);
-        doc.setFont("helvetica", "normal");
-        doc.text(entry.equipe, margin + 74, y);
-      }
-      y += 6;
+        doc.setTextColor(...NAVY);
+        doc.text("RELATÓRIO DIÁRIO DE OBRA", PW / 2, y, { align: "center" });
+        y += 10;
 
-      // Tools
-      const toolNames = (entry.ferramentas_ids || []).map((id: string) => toolsMap.get(id) || id);
-      if (toolNames.length > 0) {
-        ensureSpace(8);
+        // Info block
+        doc.setFillColor(...LIGHT_BG);
+        doc.roundedRect(CONTENT_LEFT, y, CONTENT_WIDTH, 22, 2, 2, "F");
+        y += 6;
+        const col1 = CONTENT_LEFT + 4;
+        const col2 = CONTENT_LEFT + CONTENT_WIDTH / 2 + 4;
+
+        doc.setFontSize(7);
         doc.setFont("helvetica", "bold");
-        doc.text("Ferramentas:", margin, y);
+        doc.setTextColor(...GRAY_TEXT);
+        doc.text("OBRA:", col1, y);
         doc.setFont("helvetica", "normal");
-        const toolsText = toolNames.join(", ");
-        const toolLines = doc.splitTextToSize(toolsText, contentWidth - 28);
-        doc.text(toolLines, margin + 28, y);
-        y += toolLines.length * 4 + 3;
-      }
+        doc.setTextColor(...NAVY);
+        doc.setFontSize(9);
+        doc.text(client.nome_empreitada, col1 + 14, y);
 
-      // Atividades
-      if (entry.atividades_dia) {
-        ensureSpace(12);
+        doc.setFontSize(7);
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(8);
-        doc.text("Atividades do Dia:", margin, y);
-        y += 4;
+        doc.setTextColor(...GRAY_TEXT);
+        doc.text("CLIENTE:", col2, y);
         doc.setFont("helvetica", "normal");
-        const actLines = doc.splitTextToSize(entry.atividades_dia, contentWidth);
-        actLines.forEach((line: string) => {
-          ensureSpace(5);
-          doc.text(line, margin, y);
-          y += 4;
-        });
-        y += 2;
-      }
+        doc.setTextColor(...NAVY);
+        doc.setFontSize(9);
+        doc.text(client.nome_cliente, col2 + 18, y);
 
-      // Observações
-      if (entry.observacoes) {
-        ensureSpace(12);
+        y += 7;
+        // Format date dd/mm/yyyy
+        const dateParts = entry.data_relato.split("-");
+        const dateFormatted = dateParts.length === 3
+          ? `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`
+          : entry.data_relato;
+
+        doc.setFontSize(7);
         doc.setFont("helvetica", "bold");
-        doc.text("Observações:", margin, y);
-        y += 4;
+        doc.setTextColor(...GRAY_TEXT);
+        doc.text("DATA:", col1, y);
         doc.setFont("helvetica", "normal");
-        const obsLines = doc.splitTextToSize(entry.observacoes, contentWidth);
-        obsLines.forEach((line: string) => {
-          ensureSpace(5);
-          doc.text(line, margin, y);
-          y += 4;
-        });
-        y += 2;
-      }
+        doc.setTextColor(...NAVY);
+        doc.setFontSize(9);
+        doc.text(dateFormatted, col1 + 14, y);
 
-      // Images (URLs only)
-      const entryImages = imagesByEntry.get(entry.id) || [];
-      if (entryImages.length > 0) {
-        ensureSpace(10);
+        doc.setFontSize(7);
         doc.setFont("helvetica", "bold");
-        doc.text("Fotos:", margin, y);
-        y += 4;
+        doc.setTextColor(...GRAY_TEXT);
+        doc.text("RELATO #:", col2, y);
         doc.setFont("helvetica", "normal");
-        doc.setTextColor(40, 100, 180);
-        entryImages.forEach((img) => {
-          ensureSpace(5);
-          const label = img.filename || "foto";
-          doc.text(`• ${label}: ${img.url}`, margin + 2, y);
-          y += 4;
-        });
-        doc.setTextColor(0, 0, 0);
-        y += 2;
+        doc.setTextColor(...NAVY);
+        doc.setFontSize(9);
+        doc.text(String(idx + 1), col2 + 20, y);
+
+        y += 12;
+
+        // Weather
+        const weather = WEATHER_MAP[entry.condicoes_climaticas];
+        if (weather) {
+          y = drawSectionTitle(doc, "Condições Climáticas", y) + 3;
+          doc.setFontSize(9);
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(0, 0, 0);
+          doc.text(weather.label, CONTENT_LEFT, y);
+          y += 6;
+        }
+
+        // Equipe
+        if (entry.equipe) {
+          y = drawSectionTitle(doc, "Equipe", y) + 3;
+          y = drawWrappedText(doc, entry.equipe, CONTENT_LEFT, y, CONTENT_WIDTH);
+          y += 2;
+        }
+
+        // Ferramentas
+        const toolNames = (entry.ferramentas_ids || []).map((id: string) => toolsMap.get(id) || id);
+        if (toolNames.length > 0) {
+          y = drawSectionTitle(doc, "Ferramentas Utilizadas", y) + 3;
+          // Draw as badges
+          let badgeX = CONTENT_LEFT;
+          doc.setFontSize(8);
+          doc.setFont("helvetica", "normal");
+          for (const name of toolNames) {
+            const tw = doc.getTextWidth(name) + 6;
+            if (badgeX + tw > PW - MARGIN_RIGHT) {
+              badgeX = CONTENT_LEFT;
+              y += 6;
+            }
+            doc.setFillColor(229, 231, 235);
+            doc.roundedRect(badgeX, y - 3.5, tw, 5, 1.5, 1.5, "F");
+            doc.setTextColor(55, 65, 81);
+            doc.text(name, badgeX + 3, y);
+            badgeX += tw + 2;
+          }
+          y += 8;
+        }
+
+        // Atividades
+        if (entry.atividades_dia) {
+          y = drawSectionTitle(doc, "Atividades do Dia", y, true) + 3;
+          y = drawWrappedText(doc, entry.atividades_dia, CONTENT_LEFT, y, CONTENT_WIDTH, true);
+          y += 3;
+        }
+
+        // Observações
+        if (entry.observacoes) {
+          y = drawSectionTitle(doc, "Observações Importantes", y, true) + 3;
+          y = drawWrappedText(doc, entry.observacoes, CONTENT_LEFT, y, CONTENT_WIDTH, true);
+          y += 3;
+        }
+
+        // Images
+        const entryImages = imagesByEntry.get(entry.id) || [];
+        if (entryImages.length > 0) {
+          y = drawSectionTitle(doc, "Registros Fotográficos", y) + 3;
+
+          const maxImgH = entryImages.length === 1 ? 80 : 50;
+          const imgW = entryImages.length === 1 ? CONTENT_WIDTH * 0.6 : (CONTENT_WIDTH - 4) / 2;
+
+          let imgX = CONTENT_LEFT;
+          let imgCount = 0;
+
+          for (const img of entryImages) {
+            const imgData = await fetchImageAsBase64(img.url);
+            if (imgData) {
+              if (entryImages.length === 1) {
+                imgX = CONTENT_LEFT + (CONTENT_WIDTH - imgW) / 2;
+              } else {
+                imgX = CONTENT_LEFT + (imgCount % 2) * (imgW + 4);
+              }
+
+              // Check if we need space
+              if (y + maxImgH > PH - 40) {
+                // Skip remaining images to avoid overflow
+                doc.setFontSize(7);
+                doc.setTextColor(...GRAY_TEXT);
+                doc.text(`+ ${entryImages.length - imgCount} foto(s) não exibidas`, CONTENT_LEFT, y);
+                break;
+              }
+
+              try {
+                doc.addImage(imgData.data, imgData.format, imgX, y, imgW, maxImgH);
+              } catch {
+                doc.setFontSize(7);
+                doc.setTextColor(...GRAY_TEXT);
+                doc.text(`${img.filename}: ${img.url}`, CONTENT_LEFT, y + 4);
+              }
+
+              imgCount++;
+              if (entryImages.length === 1 || imgCount % 2 === 0) {
+                y += maxImgH + 3;
+              }
+            } else {
+              // Fallback: show URL
+              doc.setFontSize(7);
+              doc.setTextColor(40, 100, 180);
+              doc.text(`• ${img.filename}: ${img.url}`, CONTENT_LEFT, y);
+              y += 4;
+              imgCount++;
+            }
+          }
+          // Handle odd image in grid
+          if (entryImages.length > 1 && imgCount % 2 !== 0) {
+            y += maxImgH + 3;
+          }
+        }
+
+        drawFooter(doc, pageNum, totalPages);
       }
-
-      // Separator
-      ensureSpace(6);
-      doc.setDrawColor(220, 220, 220);
-      doc.line(margin, y, pageWidth - margin, y);
-      y += 8;
-    });
-
-    addFooter(doc, pageNum);
+    }
 
     const pdfBytes = doc.output("arraybuffer");
 
