@@ -170,17 +170,12 @@ async function generateHtml(data: ReportData, includeImages: boolean): Promise<s
 
         let imagesInnerHtml = "";
         for (const img of entryImages.slice(0, 4)) {
-          const key = `${entry.id}_${img.url}`;
-          const dataUri = imageDataMap.get(key);
-          if (dataUri) {
-            imagesInnerHtml += `
-              <div style="width: ${isSingle ? slotW : '100%'}px; height: ${slotH}px; border-radius: 4px; overflow: hidden;">
-                <img src="${dataUri}" alt="${escapeHtml(img.filename)}" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
-              </div>
-            `;
-          } else {
-            imagesInnerHtml += `<p style="font-size: 11px; color: #6B7280;">${escapeHtml(img.filename)}: imagem não disponível</p>`;
-          }
+          // Use direct URL (public bucket) - html2pdf.app will fetch them
+          imagesInnerHtml += `
+            <div style="width: ${isSingle ? slotW + 'px' : '100%'}; height: ${slotH}px; border-radius: 4px; overflow: hidden;">
+              <img src="${escapeHtml(img.url)}" alt="${escapeHtml(img.filename)}" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
+            </div>
+          `;
         }
         contentHtml += sectionBlock("Registros Fotográficos", `<div style="${gridStyle}">${imagesInnerHtml}</div>`);
       } else if (entryImages.length > 0) {
