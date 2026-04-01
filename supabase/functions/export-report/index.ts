@@ -38,13 +38,36 @@ function drawPageFrame(doc: jsPDF) {
   doc.triangle(BORDER_INSET, PH - BORDER_INSET, BORDER_INSET, PH - BORDER_INSET - 30, BORDER_INSET + 20, PH - BORDER_INSET, "F");
 }
 
-function drawHeader(doc: jsPDF) {
-  doc.setFillColor(...NAVY);
-  doc.roundedRect(CONTENT_LEFT, 10, 28, 28, 2, 2, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(16);
-  doc.setFont("helvetica", "bold");
-  doc.text("BAJA", CONTENT_LEFT + 14, 27, { align: "center" });
+function drawHeader(doc: jsPDF, logoData: { data: string; format: string; w: number; h: number } | null) {
+  if (logoData) {
+    // Fit logo into ~28x28mm box maintaining aspect ratio
+    const maxLogoW = 28;
+    const maxLogoH = 28;
+    const ratio = Math.min(maxLogoW / logoData.w, maxLogoH / logoData.h);
+    const lw = logoData.w * ratio;
+    const lh = logoData.h * ratio;
+    const lx = CONTENT_LEFT + (maxLogoW - lw) / 2;
+    const ly = 10 + (maxLogoH - lh) / 2;
+    // Draw navy background behind logo
+    doc.setFillColor(...NAVY);
+    doc.roundedRect(CONTENT_LEFT, 10, 28, 28, 2, 2, "F");
+    try {
+      doc.addImage(logoData.data, logoData.format, lx, ly, lw, lh);
+    } catch {
+      // Fallback to text
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.text("BAJA", CONTENT_LEFT + 14, 27, { align: "center" });
+    }
+  } else {
+    doc.setFillColor(...NAVY);
+    doc.roundedRect(CONTENT_LEFT, 10, 28, 28, 2, 2, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("BAJA", CONTENT_LEFT + 14, 27, { align: "center" });
+  }
   doc.setTextColor(...NAVY);
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
