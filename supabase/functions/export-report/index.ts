@@ -1,5 +1,4 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { jsPDF } from "https://esm.sh/jspdf@2.5.2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,159 +13,6 @@ const WEATHER_MAP: Record<string, { label: string; icon: string }> = {
   parcialmente_nublado: { label: "Parcialmente Nublado", icon: "⛅" },
 };
 
-const NAVY = [26, 43, 74] as const;
-const ORANGE = [232, 119, 34] as const;
-const GRAY_TEXT = [107, 114, 128] as const;
-const LIGHT_BG = [248, 249, 250] as const;
-
-const PW = 210;
-const PH = 297;
-const BORDER_INSET = 5;
-const LEFT_LINE_X = 18;
-const MARGIN_LEFT = 24;
-const MARGIN_RIGHT = 15;
-const CONTENT_LEFT = MARGIN_LEFT + 2;
-const CONTENT_WIDTH = PW - CONTENT_LEFT - MARGIN_RIGHT;
-
-function drawPageFrame(doc: jsPDF) {
-  doc.setDrawColor(...NAVY);
-  doc.setLineWidth(0.7);
-  doc.rect(BORDER_INSET, BORDER_INSET, PW - BORDER_INSET * 2, PH - BORDER_INSET * 2);
-  doc.setLineWidth(0.5);
-  doc.line(LEFT_LINE_X, BORDER_INSET, LEFT_LINE_X, PH - BORDER_INSET);
-  doc.setFillColor(...NAVY);
-  doc.triangle(BORDER_INSET, PH - BORDER_INSET, BORDER_INSET, PH - BORDER_INSET - 30, BORDER_INSET + 20, PH - BORDER_INSET, "F");
-}
-
-function drawHeader(doc: jsPDF, logoData: { data: string; format: string; w: number; h: number } | null) {
-  if (logoData) {
-    // Fit logo into ~28x28mm box maintaining aspect ratio
-    const maxLogoW = 28;
-    const maxLogoH = 28;
-    const ratio = Math.min(maxLogoW / logoData.w, maxLogoH / logoData.h);
-    const lw = logoData.w * ratio;
-    const lh = logoData.h * ratio;
-    const lx = CONTENT_LEFT + (maxLogoW - lw) / 2;
-    const ly = 10 + (maxLogoH - lh) / 2;
-    // Draw navy background behind logo
-    doc.setFillColor(...NAVY);
-    doc.roundedRect(CONTENT_LEFT, 10, 28, 28, 2, 2, "F");
-    try {
-      doc.addImage(logoData.data, logoData.format, lx, ly, lw, lh);
-    } catch {
-      // Fallback to text
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(16);
-      doc.setFont("helvetica", "bold");
-      doc.text("BAJA", CONTENT_LEFT + 14, 27, { align: "center" });
-    }
-  } else {
-    doc.setFillColor(...NAVY);
-    doc.roundedRect(CONTENT_LEFT, 10, 28, 28, 2, 2, "F");
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(16);
-    doc.setFont("helvetica", "bold");
-    doc.text("BAJA", CONTENT_LEFT + 14, 27, { align: "center" });
-  }
-  doc.setTextColor(...NAVY);
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  doc.text("Baja Engenharia & Construções", PW - MARGIN_RIGHT, 18, { align: "right" });
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(...GRAY_TEXT);
-  doc.text("CNPJ: 34.526.647/0001-73", PW - MARGIN_RIGHT, 24, { align: "right" });
-  doc.setDrawColor(209, 213, 219);
-  doc.setLineWidth(0.3);
-  doc.line(CONTENT_LEFT, 32, PW - MARGIN_RIGHT, 32);
-}
-
-function drawFooter(doc: jsPDF, pageNum: number, totalPages: number) {
-  const footerY = PH - BORDER_INSET - 18;
-  doc.setFontSize(8);
-  doc.setTextColor(...GRAY_TEXT);
-  doc.setFont("helvetica", "normal");
-  doc.text("Copacabana | Rio de Janeiro", CONTENT_LEFT + 10, footerY);
-  doc.text("Rua Ministro de Castro | 15 1118  |  www.bajaengenharia.com.br  |  contato@bajaengenharia.com.br", CONTENT_LEFT + 10, footerY + 4);
-  doc.text(`Página ${pageNum} de ${totalPages}`, PW / 2, footerY + 10, { align: "center" });
-}
-
-function drawSectionTitle(doc: jsPDF, title: string, y: number, accent = false): number {
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...NAVY);
-  doc.text(title.toUpperCase(), CONTENT_LEFT, y);
-  y += 1;
-  if (accent) {
-    doc.setDrawColor(...ORANGE);
-    doc.setLineWidth(0.8);
-  }
-  return y;
-}
-
-function drawWrappedText(doc: jsPDF, text: string, x: number, y: number, maxWidth: number, accent = false): number {
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(0, 0, 0);
-  const lines: string[] = doc.splitTextToSize(text, maxWidth - (accent ? 4 : 0));
-  const textX = accent ? x + 4 : x;
-  if (accent) {
-    const blockHeight = lines.length * 4.2;
-    doc.setDrawColor(...ORANGE);
-    doc.setLineWidth(0.8);
-    doc.line(x, y - 1, x, y + blockHeight - 1);
-  }
-  lines.forEach((line: string) => {
-    doc.text(line, textX, y);
-    y += 4.2;
-  });
-  return y;
-}
-
-function getResizedUrl(originalUrl: string): string {
-  // Use Supabase Storage render transform for smaller images
-  // Replace /object/public/ with /render/image/public/ and add resize params
-  const transformed = originalUrl.replace(
-    "/object/public/",
-    "/render/image/public/"
-  );
-  const sep = transformed.includes("?") ? "&" : "?";
-  return `${transformed}${sep}width=400&quality=50`;
-}
-
-function getJpegDimensions(bytes: Uint8Array): { w: number; h: number } | null {
-  let i = 2;
-  while (i < bytes.length - 1) {
-    if (bytes[i] !== 0xff) return null;
-    const marker = bytes[i + 1];
-    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8) {
-      if (i + 9 < bytes.length) {
-        const h = (bytes[i + 5] << 8) | bytes[i + 6];
-        const w = (bytes[i + 7] << 8) | bytes[i + 8];
-        return { w, h };
-      }
-    }
-    const len = (bytes[i + 2] << 8) | bytes[i + 3];
-    i += 2 + len;
-  }
-  return null;
-}
-
-function getPngDimensions(bytes: Uint8Array): { w: number; h: number } | null {
-  // PNG IHDR starts at byte 16 (after 8-byte sig + 4 length + 4 "IHDR")
-  if (bytes.length < 24) return null;
-  if (bytes[12] === 0x49 && bytes[13] === 0x48 && bytes[14] === 0x44 && bytes[15] === 0x52) {
-    const w = (bytes[16] << 24) | (bytes[17] << 16) | (bytes[18] << 8) | bytes[19];
-    const h = (bytes[20] << 24) | (bytes[21] << 16) | (bytes[22] << 8) | bytes[23];
-    return { w, h };
-  }
-  return null;
-}
-
-function getImageDimensions(bytes: Uint8Array, format: string): { w: number; h: number } | null {
-  return format === "PNG" ? getPngDimensions(bytes) : getJpegDimensions(bytes);
-}
-
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = "";
   const CHUNK = 8192;
@@ -177,7 +23,16 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-async function fetchImageAsBase64(url: string, maxBytes = 500_000): Promise<{ data: string; format: string; w: number; h: number } | null> {
+function getResizedUrl(originalUrl: string): string {
+  const transformed = originalUrl.replace(
+    "/object/public/",
+    "/render/image/public/"
+  );
+  const sep = transformed.includes("?") ? "&" : "?";
+  return `${transformed}${sep}width=400&quality=50`;
+}
+
+async function fetchImageAsBase64DataUri(url: string, maxBytes = 500_000): Promise<string | null> {
   try {
     const resizedUrl = getResizedUrl(url);
     let resp = await fetch(resizedUrl);
@@ -189,10 +44,8 @@ async function fetchImageAsBase64(url: string, maxBytes = 500_000): Promise<{ da
     if (buf.byteLength > maxBytes) return null;
     const bytes = new Uint8Array(buf);
     const ct = resp.headers.get("content-type") || "image/jpeg";
-    const format = ct.includes("png") ? "PNG" : "JPEG";
-    const dims = getImageDimensions(bytes, format) || { w: 400, h: 300 };
     const b64 = bytesToBase64(bytes);
-    return { data: `data:${ct};base64,${b64}`, format, w: dims.w, h: dims.h };
+    return `data:${ct};base64,${b64}`;
   } catch {
     return null;
   }
@@ -205,180 +58,283 @@ interface ReportData {
   toolsMap: Map<string, string>;
 }
 
-async function generatePdf(data: ReportData, includeImages: boolean): Promise<ArrayBuffer> {
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/\n/g, "<br>");
+}
+
+function sectionBlock(title: string, content: string, accent = false): string {
+  const borderStyle = accent ? 'border-left: 3px solid #E87722; padding-left: 12px;' : '';
+  return `
+    <div style="margin-bottom: 16px;">
+      <p style="font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; color: #1A2B4A; font-size: 11px;">${escapeHtml(title)}</p>
+      <div style="${borderStyle}">
+        ${content}
+      </div>
+    </div>
+  `;
+}
+
+async function generateHtml(data: ReportData, includeImages: boolean): Promise<string> {
   const { client, entries, imagesByEntry, toolsMap } = data;
   const totalPages = entries.length || 1;
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
-  // Fetch logo once for all pages (allow larger file for logo)
-  const logoData = await fetchImageAsBase64("https://baja-obra-diario.lovable.app/baja-logo.png", 1_000_000);
+  // Fetch logo once
+  const logoDataUri = await fetchImageAsBase64DataUri(
+    "https://baja-obra-diario.lovable.app/baja-logo.png",
+    1_000_000
+  );
+
+  const logoHtml = logoDataUri
+    ? `<img src="${logoDataUri}" alt="BAJA Logo" style="width: 105px; height: 105px; object-fit: contain; border-radius: 4px;" />`
+    : `<div style="width: 105px; height: 105px; background: #1A2B4A; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; font-weight: bold;">BAJA</div>`;
+
+  let pagesHtml = "";
 
   if (entries.length === 0) {
-    drawPageFrame(doc);
-    drawHeader(doc, logoData);
-    doc.setFontSize(14);
-    doc.setTextColor(...NAVY);
-    doc.setFont("helvetica", "bold");
-    doc.text("RELATÓRIO DIÁRIO DE OBRA", PW / 2, 50, { align: "center" });
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "normal");
-    doc.text("Nenhum relato encontrado no período selecionado.", PW / 2, 65, { align: "center" });
-    drawFooter(doc, 1, 1);
+    pagesHtml = renderPage(logoHtml, `
+      <h2 style="text-align: center; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 20px; color: #1A2B4A; font-size: 18px;">Relatório Diário de Obra</h2>
+      <p style="text-align: center; color: #6B7280; font-size: 14px;">Nenhum relato encontrado no período selecionado.</p>
+    `, 1, 1);
   } else {
+    // Pre-fetch all images in parallel if including images
+    const imageDataMap = new Map<string, string>();
+    if (includeImages) {
+      const allImgUrls: { url: string; key: string }[] = [];
+      for (const entry of entries) {
+        const imgs = imagesByEntry.get(entry.id) || [];
+        for (const img of imgs.slice(0, 4)) {
+          allImgUrls.push({ url: img.url, key: `${entry.id}_${img.url}` });
+        }
+      }
+      // Process in chunks of 3 to avoid memory issues
+      for (let i = 0; i < allImgUrls.length; i += 3) {
+        const chunk = allImgUrls.slice(i, i + 3);
+        const results = await Promise.all(
+          chunk.map(async ({ url, key }) => {
+            const dataUri = await fetchImageAsBase64DataUri(url);
+            return { key, dataUri };
+          })
+        );
+        for (const { key, dataUri } of results) {
+          if (dataUri) imageDataMap.set(key, dataUri);
+        }
+      }
+    }
+
     for (let idx = 0; idx < entries.length; idx++) {
       const entry = entries[idx];
-      if (idx > 0) doc.addPage();
       const pageNum = idx + 1;
-      drawPageFrame(doc);
-      drawHeader(doc, logoData);
-      let y = 40;
+      let contentHtml = "";
 
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(...NAVY);
-      doc.text("RELATÓRIO DIÁRIO DE OBRA", PW / 2, y, { align: "center" });
-      y += 10;
+      // Title
+      contentHtml += `<h2 style="text-align: center; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 20px; color: #1A2B4A; font-size: 18px;">Relatório Diário de Obra</h2>`;
 
-      doc.setFillColor(...LIGHT_BG);
-      doc.roundedRect(CONTENT_LEFT, y, CONTENT_WIDTH, 22, 2, 2, "F");
-      y += 6;
-      const col1 = CONTENT_LEFT + 4;
-      const col2 = CONTENT_LEFT + CONTENT_WIDTH / 2 + 4;
-
-      doc.setFontSize(7); doc.setFont("helvetica", "bold"); doc.setTextColor(...GRAY_TEXT);
-      doc.text("OBRA:", col1, y);
-      doc.setFont("helvetica", "normal"); doc.setTextColor(...NAVY); doc.setFontSize(9);
-      doc.text(client.nome_empreitada, col1 + 14, y);
-
-      doc.setFontSize(7); doc.setFont("helvetica", "bold"); doc.setTextColor(...GRAY_TEXT);
-      doc.text("CLIENTE:", col2, y);
-      doc.setFont("helvetica", "normal"); doc.setTextColor(...NAVY); doc.setFontSize(9);
-      doc.text(client.nome_cliente, col2 + 18, y);
-
-      y += 7;
+      // Info block
       const dateParts = entry.data_relato.split("-");
       const dateFormatted = dateParts.length === 3 ? `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}` : entry.data_relato;
 
-      doc.setFontSize(7); doc.setFont("helvetica", "bold"); doc.setTextColor(...GRAY_TEXT);
-      doc.text("DATA:", col1, y);
-      doc.setFont("helvetica", "normal"); doc.setTextColor(...NAVY); doc.setFontSize(9);
-      doc.text(dateFormatted, col1 + 14, y);
+      contentHtml += `
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; margin-bottom: 24px; padding: 16px; border-radius: 4px; background-color: #F8F9FA; font-size: 13px;">
+          <div>
+            <span style="font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em; color: #6B7280;">Obra: </span>
+            <span style="font-weight: 500; color: #1A2B4A;">${escapeHtml(client.nome_empreitada)}</span>
+          </div>
+          <div>
+            <span style="font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em; color: #6B7280;">Cliente: </span>
+            <span style="font-weight: 500; color: #1A2B4A;">${escapeHtml(client.nome_cliente)}</span>
+          </div>
+          <div>
+            <span style="font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em; color: #6B7280;">Data: </span>
+            <span style="font-weight: 500; color: #1A2B4A;">${dateFormatted}</span>
+          </div>
+          <div>
+            <span style="font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em; color: #6B7280;">Relato #: </span>
+            <span style="font-weight: 500; color: #1A2B4A;">${idx + 1}</span>
+          </div>
+        </div>
+      `;
 
-      doc.setFontSize(7); doc.setFont("helvetica", "bold"); doc.setTextColor(...GRAY_TEXT);
-      doc.text("RELATO #:", col2, y);
-      doc.setFont("helvetica", "normal"); doc.setTextColor(...NAVY); doc.setFontSize(9);
-      doc.text(String(idx + 1), col2 + 20, y);
-
-      y += 12;
-
+      // Weather
       const weather = WEATHER_MAP[entry.condicoes_climaticas];
       if (weather) {
-        y = drawSectionTitle(doc, "Condições Climáticas", y) + 3;
-        doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(0, 0, 0);
-        doc.text(weather.label, CONTENT_LEFT, y);
-        y += 6;
+        contentHtml += sectionBlock("Condições Climáticas", `<p style="font-size: 13px;">${weather.icon} ${escapeHtml(weather.label)}</p>`);
       }
 
+      // Equipe
       if (entry.equipe) {
-        y = drawSectionTitle(doc, "Equipe", y) + 3;
-        y = drawWrappedText(doc, entry.equipe, CONTENT_LEFT, y, CONTENT_WIDTH);
-        y += 2;
+        contentHtml += sectionBlock("Equipe", `<p style="white-space: pre-wrap; font-size: 13px;">${escapeHtml(entry.equipe)}</p>`);
       }
 
+      // Ferramentas
       const toolNames = (entry.ferramentas_ids || []).map((id: string) => toolsMap.get(id) || id);
       if (toolNames.length > 0) {
-        y = drawSectionTitle(doc, "Ferramentas Utilizadas", y) + 3;
-        let badgeX = CONTENT_LEFT;
-        doc.setFontSize(8); doc.setFont("helvetica", "normal");
-        for (const name of toolNames) {
-          const tw = doc.getTextWidth(name) + 6;
-          if (badgeX + tw > PW - MARGIN_RIGHT) { badgeX = CONTENT_LEFT; y += 6; }
-          doc.setFillColor(229, 231, 235);
-          doc.roundedRect(badgeX, y - 3.5, tw, 5, 1.5, 1.5, "F");
-          doc.setTextColor(55, 65, 81);
-          doc.text(name, badgeX + 3, y);
-          badgeX += tw + 2;
-        }
-        y += 8;
+        const badgesHtml = toolNames.map((name: string) =>
+          `<span style="display: inline-block; padding: 2px 8px; background: #E5E7EB; color: #374151; border-radius: 4px; font-size: 12px; margin: 2px;">${escapeHtml(name)}</span>`
+        ).join("");
+        contentHtml += sectionBlock("Ferramentas Utilizadas", `<div style="display: flex; flex-wrap: wrap; gap: 6px;">${badgesHtml}</div>`);
       }
 
+      // Atividades
       if (entry.atividades_dia) {
-        y = drawSectionTitle(doc, "Atividades do Dia", y, true) + 3;
-        y = drawWrappedText(doc, entry.atividades_dia, CONTENT_LEFT, y, CONTENT_WIDTH, true);
-        y += 3;
+        contentHtml += sectionBlock("Atividades do Dia", `<p style="white-space: pre-wrap; font-size: 13px;">${escapeHtml(entry.atividades_dia)}</p>`, true);
       }
 
+      // Observações
       if (entry.observacoes) {
-        y = drawSectionTitle(doc, "Observações Importantes", y, true) + 3;
-        y = drawWrappedText(doc, entry.observacoes, CONTENT_LEFT, y, CONTENT_WIDTH, true);
-        y += 3;
+        contentHtml += sectionBlock("Observações Importantes", `<p style="white-space: pre-wrap; font-size: 13px;">${escapeHtml(entry.observacoes)}</p>`, true);
       }
 
+      // Fotos
       const entryImages = imagesByEntry.get(entry.id) || [];
-      if (entryImages.length > 0) {
-        y = drawSectionTitle(doc, "Registros Fotográficos", y) + 3;
+      if (entryImages.length > 0 && includeImages) {
+        const isSingle = entryImages.length === 1;
+        const slotW = isSingle ? 700 : 340;
+        const slotH = isSingle ? 450 : 220;
+        const gridStyle = isSingle
+          ? "display: flex; justify-content: center;"
+          : "display: grid; grid-template-columns: 1fr 1fr; gap: 12px;";
 
-        if (includeImages) {
-          const maxSlotH = entryImages.length === 1 ? 80 : 50;
-          const maxSlotW = entryImages.length === 1 ? CONTENT_WIDTH * 0.6 : (CONTENT_WIDTH - 4) / 2;
-          let imgX = CONTENT_LEFT;
-          let imgCount = 0;
-          let rowMaxH = 0;
-          const maxImages = 4;
-          const imagesToProcess = entryImages.slice(0, maxImages);
-          for (const img of imagesToProcess) {
-            const imgData = await fetchImageAsBase64(img.url);
-            if (imgData) {
-              // Calculate proportional dimensions
-              const ratio = Math.min(maxSlotW / imgData.w, maxSlotH / imgData.h);
-              const finalW = imgData.w * ratio;
-              const finalH = imgData.h * ratio;
-
-              if (entryImages.length === 1) {
-                imgX = CONTENT_LEFT + (CONTENT_WIDTH - finalW) / 2;
-              } else {
-                imgX = CONTENT_LEFT + (imgCount % 2) * (maxSlotW + 4);
-              }
-              if (y + finalH > PH - 40) {
-                doc.setFontSize(7); doc.setTextColor(...GRAY_TEXT);
-                doc.text(`+ ${entryImages.length - imgCount} foto(s) não exibidas`, CONTENT_LEFT, y);
-                break;
-              }
-              try {
-                doc.addImage(imgData.data, imgData.format, imgX, y, finalW, finalH);
-              } catch {
-                doc.setFontSize(7); doc.setTextColor(...GRAY_TEXT);
-                doc.text(`${img.filename}: ${img.url}`, CONTENT_LEFT, y + 4);
-              }
-              rowMaxH = Math.max(rowMaxH, finalH);
-              imgCount++;
-              if (entryImages.length === 1 || imgCount % 2 === 0) {
-                y += rowMaxH + 3;
-                rowMaxH = 0;
-              }
-            } else {
-              doc.setFontSize(7); doc.setTextColor(40, 100, 180);
-              doc.text(`• ${img.filename}: ${img.url}`, CONTENT_LEFT, y);
-              y += 4;
-              imgCount++;
-            }
+        let imagesInnerHtml = "";
+        for (const img of entryImages.slice(0, 4)) {
+          const key = `${entry.id}_${img.url}`;
+          const dataUri = imageDataMap.get(key);
+          if (dataUri) {
+            imagesInnerHtml += `
+              <div style="width: ${isSingle ? slotW : '100%'}px; height: ${slotH}px; border-radius: 4px; overflow: hidden;">
+                <img src="${dataUri}" alt="${escapeHtml(img.filename)}" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
+              </div>
+            `;
+          } else {
+            imagesInnerHtml += `<p style="font-size: 11px; color: #6B7280;">${escapeHtml(img.filename)}: imagem não disponível</p>`;
           }
-          if (entryImages.length > 1 && imgCount % 2 !== 0) { y += rowMaxH + 3; }
-        } else {
-          doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(40, 100, 180);
-          entryImages.forEach((img) => {
-            doc.text(`• ${img.filename || "foto"}: ${img.url}`, CONTENT_LEFT, y);
-            y += 4;
-          });
-          doc.setTextColor(0, 0, 0);
         }
+        contentHtml += sectionBlock("Registros Fotográficos", `<div style="${gridStyle}">${imagesInnerHtml}</div>`);
+      } else if (entryImages.length > 0) {
+        const linksHtml = entryImages.map(img =>
+          `<p style="font-size: 11px; color: #2864B4;">• ${escapeHtml(img.filename || "foto")}: ${escapeHtml(img.url)}</p>`
+        ).join("");
+        contentHtml += sectionBlock("Registros Fotográficos", linksHtml);
       }
 
-      drawFooter(doc, pageNum, totalPages);
+      pagesHtml += renderPage(logoHtml, contentHtml, pageNum, totalPages);
     }
   }
 
-  return doc.output("arraybuffer");
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', Helvetica, Arial, sans-serif; background: white; }
+    .a4-page {
+      width: 794px;
+      min-height: 1123px;
+      height: 1123px;
+      background: white;
+      position: relative;
+      padding: 32px;
+      page-break-after: always;
+      overflow: hidden;
+    }
+    .a4-page:last-child { page-break-after: auto; }
+    .a4-page-border {
+      position: absolute;
+      inset: 8px;
+      border: 1.5px solid #1A2B4A;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .a4-left-line {
+      position: absolute;
+      left: 40px;
+      top: 86px;
+      bottom: 140px;
+      width: 2px;
+      background: #1A2B4A;
+      z-index: 0;
+    }
+    .a4-footer-diagonal {
+      position: absolute;
+      bottom: 8px;
+      left: 8px;
+      width: 80px;
+      height: 60px;
+      background: #1A2B4A;
+      clip-path: polygon(0 0, 0 100%, 100% 100%);
+      z-index: 0;
+    }
+  </style>
+</head>
+<body>
+  ${pagesHtml}
+</body>
+</html>`;
+}
+
+function renderPage(logoHtml: string, contentHtml: string, pageNum: number, totalPages: number): string {
+  return `
+    <div class="a4-page">
+      <div class="a4-page-border"></div>
+      <div class="a4-left-line"></div>
+      <div class="a4-footer-diagonal"></div>
+
+      <!-- HEADER -->
+      <div style="position: relative; z-index: 10; display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px;">
+        ${logoHtml}
+        <div style="text-align: right;">
+          <p style="font-weight: bold; color: #1A2B4A; font-size: 14px;">Baja Engenharia &amp; Construções</p>
+          <p style="color: #6B7280; font-size: 11px;">CNPJ: 34.526.647/0001-73</p>
+          <div style="margin-top: 8px; border-bottom: 1px solid #D1D5DB;"></div>
+        </div>
+      </div>
+
+      <!-- CONTENT -->
+      <div style="position: relative; z-index: 10; padding-left: 24px; min-height: 725px; overflow: hidden;">
+        ${contentHtml}
+      </div>
+
+      <!-- FOOTER -->
+      <div style="position: absolute; bottom: 0; left: 0; right: 0; z-index: 10; padding: 0 32px 16px 100px;">
+        <p style="color: #9CA3AF; font-size: 10px;">Copacabana | Rio de Janeiro</p>
+        <p style="color: #9CA3AF; font-size: 10px;">Rua Ministro de Castro | 15 1118 &nbsp;|&nbsp; www.bajaengenharia.com.br &nbsp;|&nbsp; contato@bajaengenharia.com.br</p>
+        <p style="text-align: center; margin-top: 8px; color: #9CA3AF; font-size: 10px;">Página ${pageNum} de ${totalPages}</p>
+      </div>
+    </div>
+  `;
+}
+
+async function convertHtmlToPdf(html: string): Promise<ArrayBuffer> {
+  const apiKey = Deno.env.get("HTML2PDF_API_KEY");
+  if (!apiKey) throw new Error("HTML2PDF_API_KEY não configurada");
+
+  const resp = await fetch("https://api.html2pdf.app/v1/generate", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      apiKey,
+      html,
+      format: "A4",
+      margin: { top: 0, right: 0, bottom: 0, left: 0 },
+      printBackground: true,
+      preferCSSPageSize: true,
+    }),
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`html2pdf.app error ${resp.status}: ${errText}`);
+  }
+
+  return resp.arrayBuffer();
 }
 
 async function fetchReportData(supabase: any, clientId: string, dataInicio: string | null, dataFim: string | null) {
@@ -505,7 +461,8 @@ Deno.serve(async (req) => {
     // === SYNC MODE: no images, return PDF directly ===
     if (!includeImages) {
       const reportData = await fetchReportData(supabase, clientId, dataInicio, dataFim);
-      const pdfBytes = await generatePdf(reportData, false);
+      const html = await generateHtml(reportData, false);
+      const pdfBytes = await convertHtmlToPdf(html);
 
       return new Response(pdfBytes, {
         headers: {
@@ -534,7 +491,8 @@ Deno.serve(async (req) => {
     const bgPromise = (async () => {
       try {
         const reportData = await fetchReportData(supabase, clientId, dataInicio, dataFim);
-        const pdfBytes = await generatePdf(reportData, true);
+        const html = await generateHtml(reportData, true);
+        const pdfBytes = await convertHtmlToPdf(html);
 
         const filePath = `${job.id}.pdf`;
         const { error: uploadErr } = await supabase.storage
@@ -561,7 +519,6 @@ Deno.serve(async (req) => {
       // @ts-ignore
       EdgeRuntime.waitUntil(bgPromise);
     } else {
-      // Fallback: just await (may hit CPU limit but won't lose the promise)
       bgPromise.catch(() => {});
     }
 
