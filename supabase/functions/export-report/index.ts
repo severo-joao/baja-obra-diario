@@ -83,15 +83,9 @@ async function generateHtml(data: ReportData, includeImages: boolean): Promise<s
   const { client, entries, imagesByEntry, toolsMap } = data;
   const totalPages = entries.length || 1;
 
-  // Fetch logo once
-  const logoDataUri = await fetchImageAsBase64DataUri(
-    "https://baja-obra-diario.lovable.app/baja-logo.png",
-    1_000_000
-  );
-
-  const logoHtml = logoDataUri
-    ? `<img src="${logoDataUri}" alt="BAJA Logo" style="width: 105px; height: 105px; object-fit: contain; border-radius: 4px;" />`
-    : `<div style="width: 105px; height: 105px; background: #1A2B4A; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; font-weight: bold;">BAJA</div>`;
+  // Use direct URL for logo (public asset) - no base64 needed
+  const logoUrl = "https://baja-obra-diario.lovable.app/baja-logo.png";
+  const logoHtml = `<img src="${logoUrl}" alt="BAJA Logo" style="width: 105px; height: 105px; object-fit: contain; border-radius: 4px;" />`;
 
   let pagesHtml = "";
 
