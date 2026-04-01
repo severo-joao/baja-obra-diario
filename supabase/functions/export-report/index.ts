@@ -38,13 +38,36 @@ function drawPageFrame(doc: jsPDF) {
   doc.triangle(BORDER_INSET, PH - BORDER_INSET, BORDER_INSET, PH - BORDER_INSET - 30, BORDER_INSET + 20, PH - BORDER_INSET, "F");
 }
 
-function drawHeader(doc: jsPDF) {
-  doc.setFillColor(...NAVY);
-  doc.roundedRect(CONTENT_LEFT, 10, 28, 28, 2, 2, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(16);
-  doc.setFont("helvetica", "bold");
-  doc.text("BAJA", CONTENT_LEFT + 14, 27, { align: "center" });
+function drawHeader(doc: jsPDF, logoData: { data: string; format: string; w: number; h: number } | null) {
+  if (logoData) {
+    // Fit logo into ~28x28mm box maintaining aspect ratio
+    const maxLogoW = 28;
+    const maxLogoH = 28;
+    const ratio = Math.min(maxLogoW / logoData.w, maxLogoH / logoData.h);
+    const lw = logoData.w * ratio;
+    const lh = logoData.h * ratio;
+    const lx = CONTENT_LEFT + (maxLogoW - lw) / 2;
+    const ly = 10 + (maxLogoH - lh) / 2;
+    // Draw navy background behind logo
+    doc.setFillColor(...NAVY);
+    doc.roundedRect(CONTENT_LEFT, 10, 28, 28, 2, 2, "F");
+    try {
+      doc.addImage(logoData.data, logoData.format, lx, ly, lw, lh);
+    } catch {
+      // Fallback to text
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.text("BAJA", CONTENT_LEFT + 14, 27, { align: "center" });
+    }
+  } else {
+    doc.setFillColor(...NAVY);
+    doc.roundedRect(CONTENT_LEFT, 10, 28, 28, 2, 2, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("BAJA", CONTENT_LEFT + 14, 27, { align: "center" });
+  }
   doc.setTextColor(...NAVY);
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
@@ -111,9 +134,51 @@ function getResizedUrl(originalUrl: string): string {
   return `${transformed}${sep}width=400&quality=50`;
 }
 
-async function fetchImageAsBase64(url: string): Promise<{ data: string; format: string } | null> {
+function getJpegDimensions(bytes: Uint8Array): { w: number; h: number } | null {
+  let i = 2;
+  while (i < bytes.length - 1) {
+    if (bytes[i] !== 0xff) return null;
+    const marker = bytes[i + 1];
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8) {
+      if (i + 9 < bytes.length) {
+        const h = (bytes[i + 5] << 8) | bytes[i + 6];
+        const w = (bytes[i + 7] << 8) | bytes[i + 8];
+        return { w, h };
+      }
+    }
+    const len = (bytes[i + 2] << 8) | bytes[i + 3];
+    i += 2 + len;
+  }
+  return null;
+}
+
+function getPngDimensions(bytes: Uint8Array): { w: number; h: number } | null {
+  // PNG IHDR starts at byte 16 (after 8-byte sig + 4 length + 4 "IHDR")
+  if (bytes.length < 24) return null;
+  if (bytes[12] === 0x49 && bytes[13] === 0x48 && bytes[14] === 0x44 && bytes[15] === 0x52) {
+    const w = (bytes[16] << 24) | (bytes[17] << 16) | (bytes[18] << 8) | bytes[19];
+    const h = (bytes[20] << 24) | (bytes[21] << 16) | (bytes[22] << 8) | bytes[23];
+    return { w, h };
+  }
+  return null;
+}
+
+function getImageDimensions(bytes: Uint8Array, format: string): { w: number; h: number } | null {
+  return format === "PNG" ? getPngDimensions(bytes) : getJpegDimensions(bytes);
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const CHUNK = 8192;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    const slice = bytes.subarray(i, Math.min(i + CHUNK, bytes.length));
+    binary += String.fromCharCode(...slice);
+  }
+  return btoa(binary);
+}
+
+async function fetchImageAsBase64(url: string, maxBytes = 500_000): Promise<{ data: string; format: string; w: number; h: number } | null> {
   try {
-    // Try resized version first, fall back to original
     const resizedUrl = getResizedUrl(url);
     let resp = await fetch(resizedUrl);
     if (!resp.ok) {
@@ -121,19 +186,13 @@ async function fetchImageAsBase64(url: string): Promise<{ data: string; format: 
       if (!resp.ok) return null;
     }
     const buf = await resp.arrayBuffer();
-    // Skip images larger than 500KB even after resize
-    if (buf.byteLength > 500_000) return null;
+    if (buf.byteLength > maxBytes) return null;
     const bytes = new Uint8Array(buf);
-    let binary = "";
-    const CHUNK = 8192;
-    for (let i = 0; i < bytes.length; i += CHUNK) {
-      const slice = bytes.subarray(i, Math.min(i + CHUNK, bytes.length));
-      binary += String.fromCharCode(...slice);
-    }
-    const b64 = btoa(binary);
     const ct = resp.headers.get("content-type") || "image/jpeg";
     const format = ct.includes("png") ? "PNG" : "JPEG";
-    return { data: `data:image/jpeg;base64,${b64}`, format: "JPEG" };
+    const dims = getImageDimensions(bytes, format) || { w: 400, h: 300 };
+    const b64 = bytesToBase64(bytes);
+    return { data: `data:${ct};base64,${b64}`, format, w: dims.w, h: dims.h };
   } catch {
     return null;
   }
@@ -151,9 +210,12 @@ async function generatePdf(data: ReportData, includeImages: boolean): Promise<Ar
   const totalPages = entries.length || 1;
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
+  // Fetch logo once for all pages (allow larger file for logo)
+  const logoData = await fetchImageAsBase64("https://baja-obra-diario.lovable.app/baja-logo.png", 1_000_000);
+
   if (entries.length === 0) {
     drawPageFrame(doc);
-    drawHeader(doc);
+    drawHeader(doc, logoData);
     doc.setFontSize(14);
     doc.setTextColor(...NAVY);
     doc.setFont("helvetica", "bold");
@@ -168,7 +230,7 @@ async function generatePdf(data: ReportData, includeImages: boolean): Promise<Ar
       if (idx > 0) doc.addPage();
       const pageNum = idx + 1;
       drawPageFrame(doc);
-      drawHeader(doc);
+      drawHeader(doc, logoData);
       let y = 40;
 
       doc.setFontSize(14);
@@ -257,33 +319,43 @@ async function generatePdf(data: ReportData, includeImages: boolean): Promise<Ar
         y = drawSectionTitle(doc, "Registros Fotográficos", y) + 3;
 
         if (includeImages) {
-          const maxImgH = entryImages.length === 1 ? 80 : 50;
-          const imgW = entryImages.length === 1 ? CONTENT_WIDTH * 0.6 : (CONTENT_WIDTH - 4) / 2;
+          const maxSlotH = entryImages.length === 1 ? 80 : 50;
+          const maxSlotW = entryImages.length === 1 ? CONTENT_WIDTH * 0.6 : (CONTENT_WIDTH - 4) / 2;
           let imgX = CONTENT_LEFT;
           let imgCount = 0;
-          const maxImages = 4; // Limit to prevent memory overflow
+          let rowMaxH = 0;
+          const maxImages = 4;
           const imagesToProcess = entryImages.slice(0, maxImages);
           for (const img of imagesToProcess) {
             const imgData = await fetchImageAsBase64(img.url);
             if (imgData) {
+              // Calculate proportional dimensions
+              const ratio = Math.min(maxSlotW / imgData.w, maxSlotH / imgData.h);
+              const finalW = imgData.w * ratio;
+              const finalH = imgData.h * ratio;
+
               if (entryImages.length === 1) {
-                imgX = CONTENT_LEFT + (CONTENT_WIDTH - imgW) / 2;
+                imgX = CONTENT_LEFT + (CONTENT_WIDTH - finalW) / 2;
               } else {
-                imgX = CONTENT_LEFT + (imgCount % 2) * (imgW + 4);
+                imgX = CONTENT_LEFT + (imgCount % 2) * (maxSlotW + 4);
               }
-              if (y + maxImgH > PH - 40) {
+              if (y + finalH > PH - 40) {
                 doc.setFontSize(7); doc.setTextColor(...GRAY_TEXT);
                 doc.text(`+ ${entryImages.length - imgCount} foto(s) não exibidas`, CONTENT_LEFT, y);
                 break;
               }
               try {
-                doc.addImage(imgData.data, imgData.format, imgX, y, imgW, maxImgH);
+                doc.addImage(imgData.data, imgData.format, imgX, y, finalW, finalH);
               } catch {
                 doc.setFontSize(7); doc.setTextColor(...GRAY_TEXT);
                 doc.text(`${img.filename}: ${img.url}`, CONTENT_LEFT, y + 4);
               }
+              rowMaxH = Math.max(rowMaxH, finalH);
               imgCount++;
-              if (entryImages.length === 1 || imgCount % 2 === 0) { y += maxImgH + 3; }
+              if (entryImages.length === 1 || imgCount % 2 === 0) {
+                y += rowMaxH + 3;
+                rowMaxH = 0;
+              }
             } else {
               doc.setFontSize(7); doc.setTextColor(40, 100, 180);
               doc.text(`• ${img.filename}: ${img.url}`, CONTENT_LEFT, y);
@@ -291,7 +363,7 @@ async function generatePdf(data: ReportData, includeImages: boolean): Promise<Ar
               imgCount++;
             }
           }
-          if (entryImages.length > 1 && imgCount % 2 !== 0) { y += maxImgH + 3; }
+          if (entryImages.length > 1 && imgCount % 2 !== 0) { y += rowMaxH + 3; }
         } else {
           doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(40, 100, 180);
           entryImages.forEach((img) => {
