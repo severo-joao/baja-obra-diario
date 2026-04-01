@@ -111,9 +111,51 @@ function getResizedUrl(originalUrl: string): string {
   return `${transformed}${sep}width=400&quality=50`;
 }
 
-async function fetchImageAsBase64(url: string): Promise<{ data: string; format: string } | null> {
+function getJpegDimensions(bytes: Uint8Array): { w: number; h: number } | null {
+  let i = 2;
+  while (i < bytes.length - 1) {
+    if (bytes[i] !== 0xff) return null;
+    const marker = bytes[i + 1];
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8) {
+      if (i + 9 < bytes.length) {
+        const h = (bytes[i + 5] << 8) | bytes[i + 6];
+        const w = (bytes[i + 7] << 8) | bytes[i + 8];
+        return { w, h };
+      }
+    }
+    const len = (bytes[i + 2] << 8) | bytes[i + 3];
+    i += 2 + len;
+  }
+  return null;
+}
+
+function getPngDimensions(bytes: Uint8Array): { w: number; h: number } | null {
+  // PNG IHDR starts at byte 16 (after 8-byte sig + 4 length + 4 "IHDR")
+  if (bytes.length < 24) return null;
+  if (bytes[12] === 0x49 && bytes[13] === 0x48 && bytes[14] === 0x44 && bytes[15] === 0x52) {
+    const w = (bytes[16] << 24) | (bytes[17] << 16) | (bytes[18] << 8) | bytes[19];
+    const h = (bytes[20] << 24) | (bytes[21] << 16) | (bytes[22] << 8) | bytes[23];
+    return { w, h };
+  }
+  return null;
+}
+
+function getImageDimensions(bytes: Uint8Array, format: string): { w: number; h: number } | null {
+  return format === "PNG" ? getPngDimensions(bytes) : getJpegDimensions(bytes);
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const CHUNK = 8192;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    const slice = bytes.subarray(i, Math.min(i + CHUNK, bytes.length));
+    binary += String.fromCharCode(...slice);
+  }
+  return btoa(binary);
+}
+
+async function fetchImageAsBase64(url: string, maxBytes = 500_000): Promise<{ data: string; format: string; w: number; h: number } | null> {
   try {
-    // Try resized version first, fall back to original
     const resizedUrl = getResizedUrl(url);
     let resp = await fetch(resizedUrl);
     if (!resp.ok) {
@@ -121,19 +163,13 @@ async function fetchImageAsBase64(url: string): Promise<{ data: string; format: 
       if (!resp.ok) return null;
     }
     const buf = await resp.arrayBuffer();
-    // Skip images larger than 500KB even after resize
-    if (buf.byteLength > 500_000) return null;
+    if (buf.byteLength > maxBytes) return null;
     const bytes = new Uint8Array(buf);
-    let binary = "";
-    const CHUNK = 8192;
-    for (let i = 0; i < bytes.length; i += CHUNK) {
-      const slice = bytes.subarray(i, Math.min(i + CHUNK, bytes.length));
-      binary += String.fromCharCode(...slice);
-    }
-    const b64 = btoa(binary);
     const ct = resp.headers.get("content-type") || "image/jpeg";
     const format = ct.includes("png") ? "PNG" : "JPEG";
-    return { data: `data:image/jpeg;base64,${b64}`, format: "JPEG" };
+    const dims = getImageDimensions(bytes, format) || { w: 400, h: 300 };
+    const b64 = bytesToBase64(bytes);
+    return { data: `data:${ct};base64,${b64}`, format, w: dims.w, h: dims.h };
   } catch {
     return null;
   }
