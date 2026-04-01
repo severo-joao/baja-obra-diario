@@ -55,6 +55,7 @@ export default function ExportPage() {
           useCORS: true,
           allowTaint: true,
           backgroundColor: "#ffffff",
+          imageTimeout: 0,
         });
         const imgData = canvas.toDataURL("image/jpeg", 0.95);
 
