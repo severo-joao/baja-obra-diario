@@ -83,15 +83,9 @@ async function generateHtml(data: ReportData, includeImages: boolean): Promise<s
   const { client, entries, imagesByEntry, toolsMap } = data;
   const totalPages = entries.length || 1;
 
-  // Fetch logo once
-  const logoDataUri = await fetchImageAsBase64DataUri(
-    "https://baja-obra-diario.lovable.app/baja-logo.png",
-    1_000_000
-  );
-
-  const logoHtml = logoDataUri
-    ? `<img src="${logoDataUri}" alt="BAJA Logo" style="width: 105px; height: 105px; object-fit: contain; border-radius: 4px;" />`
-    : `<div style="width: 105px; height: 105px; background: #1A2B4A; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; font-weight: bold;">BAJA</div>`;
+  // Use direct URL for logo (public asset) - no base64 needed
+  const logoUrl = "https://baja-obra-diario.lovable.app/baja-logo.png";
+  const logoHtml = `<img src="${logoUrl}" alt="BAJA Logo" style="width: 105px; height: 105px; object-fit: contain; border-radius: 4px;" />`;
 
   let pagesHtml = "";
 
@@ -101,31 +95,6 @@ async function generateHtml(data: ReportData, includeImages: boolean): Promise<s
       <p style="text-align: center; color: #6B7280; font-size: 14px;">Nenhum relato encontrado no período selecionado.</p>
     `, 1, 1);
   } else {
-    // Pre-fetch all images in parallel if including images
-    const imageDataMap = new Map<string, string>();
-    if (includeImages) {
-      const allImgUrls: { url: string; key: string }[] = [];
-      for (const entry of entries) {
-        const imgs = imagesByEntry.get(entry.id) || [];
-        for (const img of imgs.slice(0, 4)) {
-          allImgUrls.push({ url: img.url, key: `${entry.id}_${img.url}` });
-        }
-      }
-      // Process in chunks of 3 to avoid memory issues
-      for (let i = 0; i < allImgUrls.length; i += 3) {
-        const chunk = allImgUrls.slice(i, i + 3);
-        const results = await Promise.all(
-          chunk.map(async ({ url, key }) => {
-            const dataUri = await fetchImageAsBase64DataUri(url);
-            return { key, dataUri };
-          })
-        );
-        for (const { key, dataUri } of results) {
-          if (dataUri) imageDataMap.set(key, dataUri);
-        }
-      }
-    }
-
     for (let idx = 0; idx < entries.length; idx++) {
       const entry = entries[idx];
       const pageNum = idx + 1;
@@ -201,17 +170,12 @@ async function generateHtml(data: ReportData, includeImages: boolean): Promise<s
 
         let imagesInnerHtml = "";
         for (const img of entryImages.slice(0, 4)) {
-          const key = `${entry.id}_${img.url}`;
-          const dataUri = imageDataMap.get(key);
-          if (dataUri) {
-            imagesInnerHtml += `
-              <div style="width: ${isSingle ? slotW : '100%'}px; height: ${slotH}px; border-radius: 4px; overflow: hidden;">
-                <img src="${dataUri}" alt="${escapeHtml(img.filename)}" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
-              </div>
-            `;
-          } else {
-            imagesInnerHtml += `<p style="font-size: 11px; color: #6B7280;">${escapeHtml(img.filename)}: imagem não disponível</p>`;
-          }
+          // Use direct URL (public bucket) - html2pdf.app will fetch them
+          imagesInnerHtml += `
+            <div style="width: ${isSingle ? slotW + 'px' : '100%'}; height: ${slotH}px; border-radius: 4px; overflow: hidden;">
+              <img src="${escapeHtml(img.url)}" alt="${escapeHtml(img.filename)}" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
+            </div>
+          `;
         }
         contentHtml += sectionBlock("Registros Fotográficos", `<div style="${gridStyle}">${imagesInnerHtml}</div>`);
       } else if (entryImages.length > 0) {
