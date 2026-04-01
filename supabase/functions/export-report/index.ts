@@ -210,9 +210,12 @@ async function generatePdf(data: ReportData, includeImages: boolean): Promise<Ar
   const totalPages = entries.length || 1;
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
+  // Fetch logo once for all pages (allow larger file for logo)
+  const logoData = await fetchImageAsBase64("https://baja-obra-diario.lovable.app/baja-logo.png", 1_000_000);
+
   if (entries.length === 0) {
     drawPageFrame(doc);
-    drawHeader(doc);
+    drawHeader(doc, logoData);
     doc.setFontSize(14);
     doc.setTextColor(...NAVY);
     doc.setFont("helvetica", "bold");
@@ -227,7 +230,7 @@ async function generatePdf(data: ReportData, includeImages: boolean): Promise<Ar
       if (idx > 0) doc.addPage();
       const pageNum = idx + 1;
       drawPageFrame(doc);
-      drawHeader(doc);
+      drawHeader(doc, logoData);
       let y = 40;
 
       doc.setFontSize(14);
