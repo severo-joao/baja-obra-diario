@@ -97,14 +97,23 @@ export default function ReportEntrySection({ entry, index, clientName, obraName,
               : "grid grid-cols-2 gap-3"
           }>
             {entry.images.map((img) => (
-              <div key={img.id} className="rounded overflow-hidden">
+              <div
+                key={img.id}
+                className="rounded overflow-hidden"
+                style={{
+                  width: "100%",
+                  height: entry.images!.length === 1 ? 340 : 200,
+                  position: "relative",
+                }}
+              >
                 <img
                   src={img.url}
                   alt={img.filename}
-                  className="w-full object-contain"
                   style={{
-                    maxHeight: entry.images!.length === 1 ? 340 : 200,
-                    maxWidth: "100%",
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    display: "block",
                   }}
                 />
               </div>
