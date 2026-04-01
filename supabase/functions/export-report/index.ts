@@ -319,33 +319,43 @@ async function generatePdf(data: ReportData, includeImages: boolean): Promise<Ar
         y = drawSectionTitle(doc, "Registros Fotográficos", y) + 3;
 
         if (includeImages) {
-          const maxImgH = entryImages.length === 1 ? 80 : 50;
-          const imgW = entryImages.length === 1 ? CONTENT_WIDTH * 0.6 : (CONTENT_WIDTH - 4) / 2;
+          const maxSlotH = entryImages.length === 1 ? 80 : 50;
+          const maxSlotW = entryImages.length === 1 ? CONTENT_WIDTH * 0.6 : (CONTENT_WIDTH - 4) / 2;
           let imgX = CONTENT_LEFT;
           let imgCount = 0;
-          const maxImages = 4; // Limit to prevent memory overflow
+          let rowMaxH = 0;
+          const maxImages = 4;
           const imagesToProcess = entryImages.slice(0, maxImages);
           for (const img of imagesToProcess) {
             const imgData = await fetchImageAsBase64(img.url);
             if (imgData) {
+              // Calculate proportional dimensions
+              const ratio = Math.min(maxSlotW / imgData.w, maxSlotH / imgData.h);
+              const finalW = imgData.w * ratio;
+              const finalH = imgData.h * ratio;
+
               if (entryImages.length === 1) {
-                imgX = CONTENT_LEFT + (CONTENT_WIDTH - imgW) / 2;
+                imgX = CONTENT_LEFT + (CONTENT_WIDTH - finalW) / 2;
               } else {
-                imgX = CONTENT_LEFT + (imgCount % 2) * (imgW + 4);
+                imgX = CONTENT_LEFT + (imgCount % 2) * (maxSlotW + 4);
               }
-              if (y + maxImgH > PH - 40) {
+              if (y + finalH > PH - 40) {
                 doc.setFontSize(7); doc.setTextColor(...GRAY_TEXT);
                 doc.text(`+ ${entryImages.length - imgCount} foto(s) não exibidas`, CONTENT_LEFT, y);
                 break;
               }
               try {
-                doc.addImage(imgData.data, imgData.format, imgX, y, imgW, maxImgH);
+                doc.addImage(imgData.data, imgData.format, imgX, y, finalW, finalH);
               } catch {
                 doc.setFontSize(7); doc.setTextColor(...GRAY_TEXT);
                 doc.text(`${img.filename}: ${img.url}`, CONTENT_LEFT, y + 4);
               }
+              rowMaxH = Math.max(rowMaxH, finalH);
               imgCount++;
-              if (entryImages.length === 1 || imgCount % 2 === 0) { y += maxImgH + 3; }
+              if (entryImages.length === 1 || imgCount % 2 === 0) {
+                y += rowMaxH + 3;
+                rowMaxH = 0;
+              }
             } else {
               doc.setFontSize(7); doc.setTextColor(40, 100, 180);
               doc.text(`• ${img.filename}: ${img.url}`, CONTENT_LEFT, y);
@@ -353,7 +363,7 @@ async function generatePdf(data: ReportData, includeImages: boolean): Promise<Ar
               imgCount++;
             }
           }
-          if (entryImages.length > 1 && imgCount % 2 !== 0) { y += maxImgH + 3; }
+          if (entryImages.length > 1 && imgCount % 2 !== 0) { y += rowMaxH + 3; }
         } else {
           doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(40, 100, 180);
           entryImages.forEach((img) => {
