@@ -1,69 +1,40 @@
 
 
-## Plano: PDF com imagens via processamento assíncrono
+## Plano: Corrigir imagens esticadas e adicionar logo real no PDF
 
-### Problema
-Edge Functions têm limite de CPU (~2s). Baixar e converter imagens para base64 estoura esse limite, causando "CPU Time exceeded".
+### Problemas identificados
 
-### Solução
-Dividir em duas etapas:
+1. **Imagens esticadas**: O código usa dimensões fixas (`imgW` x `maxImgH`) sem respeitar a proporção original da imagem. O `jsPDF.addImage()` estica a imagem para caber no retângulo definido.
 
-1. **Chamada inicial** (`export-report` com `include_images=true`) → cria um registro na tabela `export_jobs` com status `processing`, inicia o processamento em background via `EdgeRuntime.waitUntil()`, e retorna imediatamente o `job_id`
-2. **Polling** (`export-report?job_id=XXX`) → o cliente consulta o status do job. Quando `completed`, retorna a URL do PDF armazenado no storage
+2. **Logo**: O header atual desenha um quadrado navy com texto "BAJA". O frontend usa `/baja-logo.png` (105x105px com `object-fit: contain`). Precisamos baixar essa imagem do site público e embutir no PDF.
 
-### Alterações
+### Alterações em `supabase/functions/export-report/index.ts`
 
-**1. Migração SQL — tabela `export_jobs` + bucket `export-pdfs`**
-```sql
-CREATE TABLE public.export_jobs (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  status text NOT NULL DEFAULT 'processing', -- processing, completed, failed
-  client_id uuid REFERENCES public.clients(id),
-  file_path text,
-  error text,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
+**1. Calcular proporção real das imagens**
 
-ALTER TABLE public.export_jobs ENABLE ROW LEVEL SECURITY;
+Antes de chamar `addImage`, extrair as dimensões reais da imagem (via parsing dos bytes JPEG/PNG) e calcular a largura/altura proporcional que caiba dentro do espaço disponível (`imgW` x `maxImgH`), sem distorcer.
 
--- Bucket para armazenar os PDFs gerados
-INSERT INTO storage.buckets (id, name, public) VALUES ('export-pdfs', 'export-pdfs', true);
+Abordagem: usar `jsPDF.getImageProperties()` (se disponível) ou parsear manualmente os headers JPEG/PNG para obter width/height. Com as dimensões reais, calcular o "fit" mantendo aspect ratio:
+
+```
+ratio = min(maxW / realW, maxH / realH)
+finalW = realW * ratio
+finalH = realH * ratio
 ```
 
-**2. Reescrever `supabase/functions/export-report/index.ts`**
+**2. Logo real no header**
 
-Novo fluxo:
-- Se `include_images=true`: cria job → usa `EdgeRuntime.waitUntil()` para processar em background (baixar imagens, gerar PDF, salvar no bucket `export-pdfs`) → retorna `{ job_id, status: "processing" }`
-- Se `job_id` presente: consulta status do job → se completed, retorna `{ status: "completed", download_url: "..." }`
-- Se `include_images` não é `true`: gera PDF sem imagens e retorna diretamente (comportamento atual)
+- Buscar `baja-logo.png` via URL pública do site (`https://baja-obra-diario.lovable.app/baja-logo.png`) na função `drawHeader`
+- Embutir como imagem PNG no PDF (mesma técnica `fetchImageAsBase64`)
+- Tamanho ~28x28mm com `object-fit: contain` (proporção mantida)
+- Fazer fetch uma vez e reutilizar para todas as páginas
 
-O processamento em background:
-1. Baixa cada imagem sequencialmente
-2. Gera o PDF com `jsPDF` (layout A4 completo)
-3. Faz upload do PDF para `storage/export-pdfs/{job_id}.pdf`
-4. Atualiza o job para `completed` com o `file_path`
-5. Se falhar, marca como `failed` com mensagem de erro
+**3. Retornar dimensões no `fetchImageAsBase64`**
 
-**3. Atualizar documentação**
-- Explicar o fluxo assíncrono com exemplos de polling
-
-### Fluxo de uso externo
-```
-# 1. Iniciar exportação
-POST /export-report?client_id=X&include_images=true
-→ { "job_id": "abc-123", "status": "processing" }
-
-# 2. Verificar status (polling a cada 3-5s)
-GET /export-report?job_id=abc-123
-→ { "status": "processing" }
-→ { "status": "completed", "download_url": "https://...export-pdfs/abc-123.pdf" }
-```
+Atualizar a função para também retornar `width` e `height` da imagem, parseando os headers do formato (JPEG SOF marker / PNG IHDR chunk), para que o caller possa calcular aspect ratio.
 
 ### Arquivos
 | Arquivo | Ação |
 |---------|------|
-| Migração SQL | Criar tabela `export_jobs` + bucket |
-| `supabase/functions/export-report/index.ts` | Reescrever com fluxo assíncrono |
-| `src/pages/DocumentationPage.tsx` | Documentar fluxo async |
+| `supabase/functions/export-report/index.ts` | Editar |
 
