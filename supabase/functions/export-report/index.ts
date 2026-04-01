@@ -95,31 +95,6 @@ async function generateHtml(data: ReportData, includeImages: boolean): Promise<s
       <p style="text-align: center; color: #6B7280; font-size: 14px;">Nenhum relato encontrado no período selecionado.</p>
     `, 1, 1);
   } else {
-    // Pre-fetch all images in parallel if including images
-    const imageDataMap = new Map<string, string>();
-    if (includeImages) {
-      const allImgUrls: { url: string; key: string }[] = [];
-      for (const entry of entries) {
-        const imgs = imagesByEntry.get(entry.id) || [];
-        for (const img of imgs.slice(0, 4)) {
-          allImgUrls.push({ url: img.url, key: `${entry.id}_${img.url}` });
-        }
-      }
-      // Process in chunks of 3 to avoid memory issues
-      for (let i = 0; i < allImgUrls.length; i += 3) {
-        const chunk = allImgUrls.slice(i, i + 3);
-        const results = await Promise.all(
-          chunk.map(async ({ url, key }) => {
-            const dataUri = await fetchImageAsBase64DataUri(url);
-            return { key, dataUri };
-          })
-        );
-        for (const { key, dataUri } of results) {
-          if (dataUri) imageDataMap.set(key, dataUri);
-        }
-      }
-    }
-
     for (let idx = 0; idx < entries.length; idx++) {
       const entry = entries[idx];
       const pageNum = idx + 1;
