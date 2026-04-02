@@ -65,6 +65,16 @@ async function fetchReportData(supabase: any, clientId: string, dateFrom: string
 
 // Fetch image as Uint8Array (avoids expensive base64 string conversion)
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024; // 3MB limit per image
+const LOGO_URL = "https://elooeyntfqkygrwmifsv.supabase.co/storage/v1/object/public/report-images/baja-logo.png";
+
+let cachedLogo: { bytes: Uint8Array; format: string } | null = null;
+
+async function fetchLogoData(): Promise<{ bytes: Uint8Array; format: string } | null> {
+  if (cachedLogo) return cachedLogo;
+  const data = await fetchImageData(LOGO_URL);
+  if (data) cachedLogo = data;
+  return data;
+}
 
 async function fetchImageData(url: string): Promise<{ bytes: Uint8Array; format: string } | null> {
   try {
@@ -105,22 +115,34 @@ function drawPageFrame(doc: any) {
   doc.line(LINE_X, BORDER_INSET, LINE_X, PH - BORDER_INSET);
 }
 
-function drawHeader(doc: any, _client: any, pageLabel: string) {
+async function drawHeader(doc: any, _client: any, pageLabel: string) {
   const y = 12;
+  const logoSize = 18; // mm
+
+  // Draw logo
+  const logo = await fetchLogoData();
+  if (logo) {
+    try {
+      doc.addImage(logo.bytes, logo.format, CONTENT_X, y - 4, logoSize, logoSize);
+    } catch { /* skip if logo fails */ }
+  }
+
+  const textX = CONTENT_X + (logo ? logoSize + 3 : 0);
+
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
   doc.setTextColor(...NAVY);
-  doc.text("BAJA Construções", CONTENT_X, y);
+  doc.text("BAJA Construções", textX, y);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...GRAY);
-  doc.text("CNPJ: 12.345.678/0001-90", CONTENT_X, y + 5);
+  doc.text("CNPJ: 12.345.678/0001-90", textX, y + 5);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(...ORANGE);
-  doc.text("Relatório Diário de Obra", CONTENT_X, y + 13);
+  doc.text("Relatório Diário de Obra", textX, y + 13);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
@@ -252,7 +274,7 @@ async function generatePdfNative(
     currentPage++;
 
     drawPageFrame(doc);
-    let y = drawHeader(doc, client, `Relatório #${ei + 1}`);
+    let y = await drawHeader(doc, client, `Relatório #${ei + 1}`);
     drawFooter(doc, client, currentPage, totalPages);
 
     y = drawInfoBlock(doc, client, entry, ei, y);
@@ -277,7 +299,7 @@ async function generatePdfNative(
           doc.addPage();
           currentPage++;
           drawPageFrame(doc);
-          const contY = drawHeader(doc, client, `Relatório #${ei + 1} (cont.)`);
+          const contY = await drawHeader(doc, client, `Relatório #${ei + 1} (cont.)`);
           drawFooter(doc, client, currentPage, totalPages);
 
           const pageImages = remaining.slice(chunk, chunk + 6);
@@ -290,7 +312,7 @@ async function generatePdfNative(
   if (entries.length === 0) {
     currentPage = 1;
     drawPageFrame(doc);
-    drawHeader(doc, client, "");
+    await drawHeader(doc, client, "");
     drawFooter(doc, client, 1, 1);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
