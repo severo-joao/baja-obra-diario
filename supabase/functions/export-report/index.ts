@@ -20,17 +20,14 @@ async function validateApiKey(supabase: any, apiKey: string | null) {
 // ─── Data fetching ───
 
 async function fetchReportData(supabase: any, clientId: string, dateFrom: string | null, dateTo: string | null) {
-  // Client
   const { data: client, error: clientErr } = await supabase
     .from("clients").select("*").eq("id", clientId).single();
   if (clientErr || !client) throw { status: 404, message: "Cliente não encontrado" };
 
-  // Report
   const { data: report } = await supabase
     .from("reports").select("id").eq("client_id", clientId).single();
   if (!report) throw { status: 404, message: "Relatório não encontrado" };
 
-  // Entries
   let entriesQuery = supabase
     .from("report_entries").select("*").eq("report_id", report.id)
     .order("data_relato", { ascending: true });
@@ -38,11 +35,9 @@ async function fetchReportData(supabase: any, clientId: string, dateFrom: string
   if (dateTo) entriesQuery = entriesQuery.lte("data_relato", dateTo);
   const { data: entries } = await entriesQuery;
 
-  // Images
   const { data: images } = await supabase
     .from("report_images").select("*").eq("report_id", report.id);
 
-  // Tools
   const allToolIds = (entries ?? []).flatMap((e: any) => e.ferramentas_ids || []);
   const uniqueToolIds = [...new Set(allToolIds)];
   let tools: any[] = [];
@@ -52,7 +47,6 @@ async function fetchReportData(supabase: any, clientId: string, dateFrom: string
     tools = toolsData ?? [];
   }
 
-  // Group images by entry_id
   const imagesByEntry: Record<string, any[]> = {};
   (images ?? []).forEach((img: any) => {
     if (img.entry_id) {
@@ -69,18 +63,23 @@ async function fetchReportData(supabase: any, clientId: string, dateFrom: string
   return { client, entries: entriesWithImages, tools };
 }
 
-async function fetchImageAsBase64(url: string): Promise<{ data: string; format: string } | null> {
+// Fetch image as Uint8Array (avoids expensive base64 string conversion)
+const MAX_IMAGE_BYTES = 3 * 1024 * 1024; // 3MB limit per image
+
+async function fetchImageData(url: string): Promise<{ bytes: Uint8Array; format: string } | null> {
   try {
     const resp = await fetch(url);
     if (!resp.ok) return null;
+    const contentLength = resp.headers.get("content-length");
+    if (contentLength && parseInt(contentLength) > MAX_IMAGE_BYTES) {
+      await resp.body?.cancel();
+      return null;
+    }
     const buf = await resp.arrayBuffer();
-    const bytes = new Uint8Array(buf);
-    let binary = "";
-    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-    const b64 = btoa(binary);
+    if (buf.byteLength > MAX_IMAGE_BYTES) return null;
     const ct = resp.headers.get("content-type") || "";
     const format = ct.includes("png") ? "PNG" : "JPEG";
-    return { data: b64, format };
+    return { bytes: new Uint8Array(buf), format };
   } catch {
     return null;
   }
@@ -90,63 +89,53 @@ async function fetchImageAsBase64(url: string): Promise<{ data: string; format: 
 
 const PW = 210;
 const PH = 297;
-const MARGIN = 11;
 const BORDER_INSET = 3;
 const LINE_X = 19;
 const CONTENT_X = 27;
 const CONTENT_W = 170;
-const NAVY = [26, 43, 74]; // #1A2B4A
-const GRAY = [107, 114, 128]; // #6B7280
-const ORANGE = [232, 119, 34]; // #E87722
-const WHITE = [255, 255, 255];
+const NAVY = [26, 43, 74];
+const GRAY = [107, 114, 128];
+const ORANGE = [232, 119, 34];
 
 function drawPageFrame(doc: any) {
-  // Navy border
   doc.setDrawColor(...NAVY);
   doc.setLineWidth(0.5);
   doc.rect(BORDER_INSET, BORDER_INSET, PW - 2 * BORDER_INSET, PH - 2 * BORDER_INSET);
-  // Left vertical line
   doc.setLineWidth(0.3);
   doc.line(LINE_X, BORDER_INSET, LINE_X, PH - BORDER_INSET);
 }
 
-function drawHeader(doc: any, client: any, pageLabel: string) {
+function drawHeader(doc: any, _client: any, pageLabel: string) {
   const y = 12;
-  // Company name
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
   doc.setTextColor(...NAVY);
   doc.text("BAJA Construções", CONTENT_X, y);
 
-  // CNPJ
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...GRAY);
   doc.text("CNPJ: 12.345.678/0001-90", CONTENT_X, y + 5);
 
-  // Title
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(...ORANGE);
   doc.text("Relatório Diário de Obra", CONTENT_X, y + 13);
 
-  // Page label on the right
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
   doc.setTextColor(...GRAY);
   doc.text(pageLabel, PW - BORDER_INSET - 5, y + 2, { align: "right" });
 
-  // Separator
   doc.setDrawColor(...ORANGE);
   doc.setLineWidth(0.4);
   doc.line(CONTENT_X, y + 16, CONTENT_X + CONTENT_W, y + 16);
 
-  return y + 20; // next Y
+  return y + 20;
 }
 
 function drawFooter(doc: any, client: any, pageNum: number, totalPages: number) {
   const y = PH - BORDER_INSET - 6;
-  // Diagonal accent
   doc.setDrawColor(...NAVY);
   doc.setLineWidth(0.3);
   doc.line(CONTENT_X, y - 2, CONTENT_X + CONTENT_W, y - 2);
@@ -224,12 +213,10 @@ function getWeatherEmoji(cond: string): string {
   return map[cond] || cond;
 }
 
-// ─── Calculate total pages ───
-
 function calculatePages(entries: any[], includeImages: boolean): number {
   let total = 0;
   for (const entry of entries) {
-    total += 1; // main page
+    total += 1;
     if (includeImages && entry.images.length > 4) {
       const extraImages = entry.images.length - 4;
       total += Math.ceil(extraImages / 6);
@@ -268,14 +255,10 @@ async function generatePdfNative(
     let y = drawHeader(doc, client, `Relatório #${ei + 1}`);
     drawFooter(doc, client, currentPage, totalPages);
 
-    // Info block
     y = drawInfoBlock(doc, client, entry, ei, y);
-
-    // Sections
     y = drawSection(doc, "Condições Climáticas", getWeatherEmoji(entry.condicoes_climaticas), y, maxContentY);
     y = drawSection(doc, "Equipe", entry.equipe, y, maxContentY);
 
-    // Tools
     const toolNames = (entry.ferramentas_ids || [])
       .map((id: string) => toolMap[id] || id)
       .join(", ");
@@ -284,12 +267,10 @@ async function generatePdfNative(
     y = drawSection(doc, "Atividades do Dia", entry.atividades_dia, y, maxContentY);
     y = drawSection(doc, "Observações", entry.observacoes, y, maxContentY);
 
-    // Images on first page (up to 4)
     if (includeImages && entry.images.length > 0) {
       const firstPageImages = entry.images.slice(0, 4);
       y = await drawImageGrid(doc, firstPageImages, y, maxContentY, 2);
 
-      // Extra pages for remaining images (6 per page)
       if (entry.images.length > 4) {
         const remaining = entry.images.slice(4);
         for (let chunk = 0; chunk < remaining.length; chunk += 6) {
@@ -306,7 +287,6 @@ async function generatePdfNative(
     }
   }
 
-  // If no entries, draw at least one page
   if (entries.length === 0) {
     currentPage = 1;
     drawPageFrame(doc);
@@ -331,7 +311,7 @@ async function drawImageGrid(
 ): Promise<number> {
   const gap = 3;
   const imgW = (CONTENT_W - gap * (cols - 1)) / cols;
-  const imgH = 53; // ~200px equivalent
+  const imgH = 53;
   let y = startY + 2;
 
   for (let i = 0; i < images.length; i++) {
@@ -341,10 +321,11 @@ async function drawImageGrid(
     if (col === 0 && i > 0) y += imgH + gap;
     if (y + imgH > maxY) break;
 
-    const imgData = await fetchImageAsBase64(images[i].url);
+    // Fetch one image at a time to minimize memory usage
+    const imgData = await fetchImageData(images[i].url);
     if (imgData) {
       try {
-        doc.addImage(imgData.data, imgData.format, x, y, imgW, imgH);
+        doc.addImage(imgData.bytes, imgData.format, x, y, imgW, imgH);
       } catch {
         // Skip broken image
       }
@@ -429,7 +410,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // === SYNC MODE (no images) ===
+    // === SYNC MODE (no images) — return PDF directly ===
     if (!includeImages) {
       const pdfBytes = await generatePdfNative(supabase, clientId, dataInicio, dataFim, false);
       const { data: clientData } = await supabase
@@ -446,6 +427,7 @@ Deno.serve(async (req) => {
     }
 
     // === ASYNC MODE: include_images=true ===
+    // Create job record first
     const { data: job, error: jobCreateErr } = await supabase
       .from("export_jobs")
       .insert({ client_id: clientId, status: "processing" })
@@ -459,42 +441,42 @@ Deno.serve(async (req) => {
       );
     }
 
-    const bgPromise = (async () => {
-      try {
-        const pdfBytes = await generatePdfNative(supabase, clientId, dataInicio, dataFim, true);
+    // Generate PDF synchronously (EdgeRuntime.waitUntil not available in Supabase)
+    try {
+      const pdfBytes = await generatePdfNative(supabase, clientId, dataInicio, dataFim, true);
 
-        const filePath = `${job.id}.pdf`;
-        const { error: uploadErr } = await supabase.storage
-          .from("export-pdfs")
-          .upload(filePath, pdfBytes, {
-            contentType: "application/pdf",
-            upsert: true,
-          });
+      const filePath = `${job.id}.pdf`;
+      const { error: uploadErr } = await supabase.storage
+        .from("export-pdfs")
+        .upload(filePath, pdfBytes, {
+          contentType: "application/pdf",
+          upsert: true,
+        });
 
-        if (uploadErr) throw uploadErr;
+      if (uploadErr) throw uploadErr;
 
-        await supabase.from("export_jobs")
-          .update({ status: "completed", file_path: filePath, updated_at: new Date().toISOString() })
-          .eq("id", job.id);
-      } catch (err: any) {
-        await supabase.from("export_jobs")
-          .update({ status: "failed", error: err.message || "Erro desconhecido", updated_at: new Date().toISOString() })
-          .eq("id", job.id);
-      }
-    })();
+      await supabase.from("export_jobs")
+        .update({ status: "completed", file_path: filePath, updated_at: new Date().toISOString() })
+        .eq("id", job.id);
 
-    // @ts-ignore
-    if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) {
-      // @ts-ignore
-      EdgeRuntime.waitUntil(bgPromise);
-    } else {
-      bgPromise.catch(() => {});
+      const { data: urlData } = supabase.storage
+        .from("export-pdfs")
+        .getPublicUrl(filePath);
+
+      return new Response(
+        JSON.stringify({ job_id: job.id, status: "completed", download_url: urlData.publicUrl }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    } catch (err: any) {
+      await supabase.from("export_jobs")
+        .update({ status: "failed", error: err.message || "Erro desconhecido", updated_at: new Date().toISOString() })
+        .eq("id", job.id);
+
+      return new Response(
+        JSON.stringify({ job_id: job.id, status: "failed", error: err.message || "Erro ao gerar PDF" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
-
-    return new Response(
-      JSON.stringify({ job_id: job.id, status: "processing" }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
   } catch (e: any) {
     const status = e.status || 500;
     return new Response(
