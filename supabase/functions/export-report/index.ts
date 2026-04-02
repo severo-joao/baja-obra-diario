@@ -47,17 +47,17 @@ async function generatePdfViaHtml2Pdf(printUrl: string): Promise<ArrayBuffer> {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authentication: apiKey,
     },
     body: JSON.stringify({
-      url: printUrl,
+      apiKey: apiKey,
+      html: printUrl,
       landscape: false,
-      paper_size: "a4",
-      margin_top: 0,
-      margin_bottom: 0,
-      margin_left: 0,
-      margin_right: 0,
-      wait_for: 5000,
+      format: "A4",
+      marginTop: 0,
+      marginBottom: 0,
+      marginLeft: 0,
+      marginRight: 0,
+      waitFor: 5000,
     }),
   });
 
