@@ -196,6 +196,47 @@ export type Database = {
         }
         Relationships: []
       }
+      print_tokens: {
+        Row: {
+          client_id: string | null
+          created_at: string | null
+          date_from: string | null
+          date_to: string | null
+          expires_at: string
+          id: string
+          token: string
+          used: boolean | null
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string | null
+          date_from?: string | null
+          date_to?: string | null
+          expires_at?: string
+          id?: string
+          token?: string
+          used?: boolean | null
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string | null
+          date_from?: string | null
+          date_to?: string | null
+          expires_at?: string
+          id?: string
+          token?: string
+          used?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "print_tokens_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string

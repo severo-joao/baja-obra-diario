@@ -19,6 +19,7 @@ import SettingsPage from "./pages/SettingsPage";
 import AuthPage from "./pages/AuthPage";
 import SetPasswordPage from "./pages/SetPasswordPage";
 import ExternalReportPage from "./pages/ExternalReportPage";
+import ReportPrintPage from "./pages/ReportPrintPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -105,6 +106,7 @@ const App = () => (
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/set-password" element={<SetPasswordPage />} />
           <Route path="/relato-externo" element={<ExternalReportPage />} />
+          <Route path="/report-print" element={<ReportPrintPage />} />
           <Route path="/*" element={<AuthenticatedRoutes />} />
         </Routes>
       </BrowserRouter>
