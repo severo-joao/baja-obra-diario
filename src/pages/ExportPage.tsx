@@ -134,21 +134,37 @@ export default function ExportPage() {
             <p className="text-sm mt-1">Selecione uma obra e período para visualizar.</p>
           </CardContent>
         </Card>
-      ) : filteredEntries.length > 0 && client && (
-        <div ref={printAreaRef} className="flex flex-col items-center gap-8">
-          {filteredEntries.map((entry, idx) => (
-            <A4ReportPage key={entry.id} pageNumber={idx + 1} totalPages={filteredEntries.length}>
-              <ReportEntrySection
-                entry={entry}
-                index={idx}
-                clientName={client.nome_cliente}
-                obraName={client.nome_empreitada}
-                tools={tools}
-              />
-            </A4ReportPage>
-          ))}
-        </div>
-      )}
+      ) : filteredEntries.length > 0 && client && (() => {
+        const FIRST_PAGE_IMAGES = 4;
+        const CONTINUATION_IMAGES = 6;
+        const pageSlots: { entry: typeof filteredEntries[0]; entryIdx: number; imageOffset: number; maxImages: number }[] = [];
+        filteredEntries.forEach((entry, entryIdx) => {
+          const imgs = entry.images ?? [];
+          pageSlots.push({ entry, entryIdx, imageOffset: 0, maxImages: FIRST_PAGE_IMAGES });
+          for (let offset = FIRST_PAGE_IMAGES; offset < imgs.length; offset += CONTINUATION_IMAGES) {
+            pageSlots.push({ entry, entryIdx, imageOffset: offset, maxImages: CONTINUATION_IMAGES });
+          }
+        });
+        const totalPages = pageSlots.length;
+
+        return (
+          <div ref={printAreaRef} className="flex flex-col items-center gap-8">
+            {pageSlots.map((slot, pageIdx) => (
+              <A4ReportPage key={`${slot.entry.id}-${slot.imageOffset}`} pageNumber={pageIdx + 1} totalPages={totalPages}>
+                <ReportEntrySection
+                  entry={slot.entry}
+                  index={slot.entryIdx}
+                  clientName={client.nome_cliente}
+                  obraName={client.nome_empreitada}
+                  tools={tools}
+                  imageOffset={slot.imageOffset}
+                  maxImages={slot.maxImages}
+                />
+              </A4ReportPage>
+            ))}
+          </div>
+        );
+      })()}
     </div>
   );
 }
