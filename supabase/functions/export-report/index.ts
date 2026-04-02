@@ -211,14 +211,40 @@ interface ReportData {
 
 async function generatePdf(data: ReportData, includeImages: boolean): Promise<ArrayBuffer> {
   const { client, entries, imagesByEntry, toolsMap } = data;
-  const totalPages = entries.length || 1;
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
   const logoData = await fetchImageAsBase64("https://baja-obra-diario.lovable.app/baja-logo.png", 1_000_000);
 
-  if (entries.length === 0) {
+  // Pre-calculate total pages (including overflow image pages)
+  const FIRST_PAGE_IMGS = 4;
+  const CONTINUATION_IMGS = 6;
+  const MAX_IMG_BOTTOM = PH - 40;
+
+  function calcTotalPages(): number {
+    if (entries.length === 0) return 1;
+    let pages = 0;
+    for (const entry of entries) {
+      const imgs = includeImages ? (imagesByEntry.get(entry.id) || []) : [];
+      pages += 1; // first page
+      if (imgs.length > FIRST_PAGE_IMGS) {
+        pages += Math.ceil((imgs.length - FIRST_PAGE_IMGS) / CONTINUATION_IMGS);
+      }
+    }
+    return pages;
+  }
+
+  const totalPages = calcTotalPages();
+  let currentPage = 0;
+
+  function startPage() {
+    currentPage++;
+    if (currentPage > 1) doc.addPage();
     drawPageFrame(doc);
     drawHeader(doc, logoData);
+  }
+
+  if (entries.length === 0) {
+    startPage();
     doc.setFontSize(14);
     doc.setTextColor(...NAVY);
     doc.setFont("helvetica", "bold");
@@ -226,14 +252,11 @@ async function generatePdf(data: ReportData, includeImages: boolean): Promise<Ar
     doc.setFontSize(11);
     doc.setFont("helvetica", "normal");
     doc.text("Nenhum relato encontrado no período selecionado.", PW / 2, 65, { align: "center" });
-    drawFooter(doc, 1, 1);
+    drawFooter(doc, currentPage, totalPages);
   } else {
     for (let idx = 0; idx < entries.length; idx++) {
       const entry = entries[idx];
-      if (idx > 0) doc.addPage();
-      const pageNum = idx + 1;
-      drawPageFrame(doc);
-      drawHeader(doc, logoData);
+      startPage();
 
       let y = HEADER_TOP + 28 + 6;
 
@@ -354,36 +377,37 @@ async function generatePdf(data: ReportData, includeImages: boolean): Promise<Ar
         y = drawSectionTitle(doc, "Registros Fotográficos", y);
 
         if (includeImages) {
-          const isSingle = entryImages.length === 1;
-          const maxSlotH = isSingle ? 70 : 45;
-          const maxSlotW = isSingle ? CONTENT_WIDTH * 0.55 : (CONTENT_WIDTH - 4) / 2;
+          const maxSlotH = entryImages.length === 1 ? 70 : 45;
+          const maxSlotW = entryImages.length === 1 ? CONTENT_WIDTH * 0.55 : (CONTENT_WIDTH - 4) / 2;
           let imgX = CONTENT_LEFT;
           let imgCount = 0;
           let rowMaxH = 0;
-          const imagesToProcess = entryImages.slice(0, 4);
 
-          for (const img of imagesToProcess) {
+          for (const img of entryImages) {
+            // Check if we need a new page
+            if (y + maxSlotH > MAX_IMG_BOTTOM) {
+              // Finish current page footer
+              drawFooter(doc, currentPage, totalPages);
+              // Start continuation page
+              startPage();
+              y = HEADER_TOP + 28 + 6;
+              y = drawSectionTitle(doc, "Registros Fotográficos (cont.)", y);
+              imgCount = 0;
+              rowMaxH = 0;
+            }
+
             const imgData = await fetchImageAsBase64(img.url);
             if (imgData) {
-              // object-fit: cover — scale to fill slot, clip overflow
               const scaleRatio = Math.max(maxSlotW / imgData.w, maxSlotH / imgData.h);
               const scaledW = imgData.w * scaleRatio;
               const scaledH = imgData.h * scaleRatio;
-              // Center and clip to slot
               const drawW = Math.min(scaledW, maxSlotW);
               const drawH = Math.min(scaledH, maxSlotH);
 
-              if (isSingle) {
+              if (entryImages.length === 1) {
                 imgX = CONTENT_LEFT + (CONTENT_WIDTH - drawW) / 2;
               } else {
                 imgX = CONTENT_LEFT + (imgCount % 2) * (maxSlotW + 4);
-              }
-
-              if (y + drawH > PH - 30) {
-                doc.setFontSize(7);
-                doc.setTextColor(...GRAY_TEXT);
-                doc.text(`+ ${entryImages.length - imgCount} foto(s) adicionais`, CONTENT_LEFT, y);
-                break;
               }
 
               try {
@@ -396,7 +420,7 @@ async function generatePdf(data: ReportData, includeImages: boolean): Promise<Ar
 
               rowMaxH = Math.max(rowMaxH, drawH);
               imgCount++;
-              if (isSingle || imgCount % 2 === 0) {
+              if (entryImages.length === 1 || imgCount % 2 === 0) {
                 y += rowMaxH + 3;
                 rowMaxH = 0;
               }
@@ -408,7 +432,7 @@ async function generatePdf(data: ReportData, includeImages: boolean): Promise<Ar
               imgCount++;
             }
           }
-          if (!isSingle && imgCount % 2 !== 0) {
+          if (entryImages.length > 1 && imgCount % 2 !== 0) {
             y += rowMaxH + 3;
           }
         } else {
@@ -423,7 +447,7 @@ async function generatePdf(data: ReportData, includeImages: boolean): Promise<Ar
         }
       }
 
-      drawFooter(doc, pageNum, totalPages);
+      drawFooter(doc, currentPage, totalPages);
     }
   }
 
