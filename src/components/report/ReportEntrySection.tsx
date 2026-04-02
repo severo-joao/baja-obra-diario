@@ -10,9 +10,12 @@ interface ReportEntrySectionProps {
   clientName: string;
   obraName: string;
   tools: Tool[];
+  imageOffset?: number;
+  maxImages?: number;
 }
 
-export default function ReportEntrySection({ entry, index, clientName, obraName, tools }: ReportEntrySectionProps) {
+export default function ReportEntrySection({ entry, index, clientName, obraName, tools, imageOffset = 0, maxImages }: ReportEntrySectionProps) {
+  const isContinuation = imageOffset > 0;
   const weather = WEATHER_OPTIONS.find((w) => w.value === entry.condicoes_climaticas);
   const usedTools = tools.filter((t) => entry.ferramentas_ids?.includes(t.id));
 
