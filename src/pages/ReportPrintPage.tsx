@@ -4,6 +4,12 @@ import A4ReportPage from "@/components/report/A4ReportPage";
 import ReportEntrySection from "@/components/report/ReportEntrySection";
 import type { ReportEntry, Tool } from "@/lib/types";
 
+interface PrintData {
+  client: { nome_cliente: string; nome_empreitada: string };
+  entries: (ReportEntry & { images?: Array<{ id: string; url: string; filename: string }> })[];
+  tools: Tool[];
+}
+
 export default function ReportPrintPage() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
