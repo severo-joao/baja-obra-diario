@@ -312,7 +312,7 @@ async function generatePdfNative(
   if (entries.length === 0) {
     currentPage = 1;
     drawPageFrame(doc);
-    drawHeader(doc, client, "");
+    await drawHeader(doc, client, "");
     drawFooter(doc, client, 1, 1);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
