@@ -299,7 +299,7 @@ async function generatePdfNative(
           doc.addPage();
           currentPage++;
           drawPageFrame(doc);
-          const contY = drawHeader(doc, client, `Relatório #${ei + 1} (cont.)`);
+          const contY = await drawHeader(doc, client, `Relatório #${ei + 1} (cont.)`);
           drawFooter(doc, client, currentPage, totalPages);
 
           const pageImages = remaining.slice(chunk, chunk + 6);
