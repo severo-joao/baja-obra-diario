@@ -10,99 +10,111 @@ interface ReportEntrySectionProps {
   clientName: string;
   obraName: string;
   tools: Tool[];
+  imageOffset?: number;
+  maxImages?: number;
 }
 
-export default function ReportEntrySection({ entry, index, clientName, obraName, tools }: ReportEntrySectionProps) {
+export default function ReportEntrySection({ entry, index, clientName, obraName, tools, imageOffset = 0, maxImages }: ReportEntrySectionProps) {
+  const isContinuation = imageOffset > 0;
   const weather = WEATHER_OPTIONS.find((w) => w.value === entry.condicoes_climaticas);
   const usedTools = tools.filter((t) => entry.ferramentas_ids?.includes(t.id));
 
+  const allImages = entry.images ?? [];
+  const slicedImages = maxImages != null
+    ? allImages.slice(imageOffset, imageOffset + maxImages)
+    : allImages.slice(imageOffset);
+
   return (
     <div>
-      {/* Title */}
-      <h2
-        className="text-center font-bold uppercase tracking-wide mb-5"
-        style={{ color: "#1A2B4A", fontSize: 18 }}
-      >
-        Relatório Diário de Obra
-      </h2>
+      {!isContinuation && (
+        <>
+          {/* Title */}
+          <h2
+            className="text-center font-bold uppercase tracking-wide mb-5"
+            style={{ color: "#1A2B4A", fontSize: 18 }}
+          >
+            Relatório Diário de Obra
+          </h2>
 
-      {/* Info block */}
-      <div
-        className="grid grid-cols-2 gap-x-6 gap-y-2 mb-6 p-4 rounded"
-        style={{ backgroundColor: "#F8F9FA", fontSize: 13 }}
-      >
-        <div>
-          <span className="font-semibold uppercase text-xs tracking-wide" style={{ color: "#6B7280" }}>Obra: </span>
-          <span className="font-medium" style={{ color: "#1A2B4A" }}>{obraName}</span>
-        </div>
-        <div>
-          <span className="font-semibold uppercase text-xs tracking-wide" style={{ color: "#6B7280" }}>Cliente: </span>
-          <span className="font-medium" style={{ color: "#1A2B4A" }}>{clientName}</span>
-        </div>
-        <div>
-          <span className="font-semibold uppercase text-xs tracking-wide" style={{ color: "#6B7280" }}>Data: </span>
-          <span className="font-medium" style={{ color: "#1A2B4A" }}>
-            {format(new Date(entry.data_relato + "T00:00:00"), "dd/MM/yyyy")}
-          </span>
-        </div>
-        <div>
-          <span className="font-semibold uppercase text-xs tracking-wide" style={{ color: "#6B7280" }}>Relato #: </span>
-          <span className="font-medium" style={{ color: "#1A2B4A" }}>{index + 1}</span>
-        </div>
-      </div>
-
-      {/* Weather */}
-      {weather && (
-        <SectionBlock title="Condições Climáticas">
-          <p style={{ fontSize: 13 }}>{weather.icon} {weather.label.replace(weather.icon + " ", "")}</p>
-        </SectionBlock>
-      )}
-
-      {/* Equipe */}
-      {entry.equipe && (
-        <SectionBlock title="Equipe">
-          <p className="whitespace-pre-wrap" style={{ fontSize: 13 }}>{entry.equipe}</p>
-        </SectionBlock>
-      )}
-
-      {/* Ferramentas */}
-      {usedTools.length > 0 && (
-        <SectionBlock title="Ferramentas Utilizadas">
-          <div className="flex flex-wrap gap-1.5">
-            {usedTools.map((t) => (
-              <Badge key={t.id} variant="secondary" className="text-xs">{t.nome}</Badge>
-            ))}
+          {/* Info block */}
+          <div
+            className="grid grid-cols-2 gap-x-6 gap-y-2 mb-6 p-4 rounded"
+            style={{ backgroundColor: "#F8F9FA", fontSize: 13 }}
+          >
+            <div>
+              <span className="font-semibold uppercase text-xs tracking-wide" style={{ color: "#6B7280" }}>Obra: </span>
+              <span className="font-medium" style={{ color: "#1A2B4A" }}>{obraName}</span>
+            </div>
+            <div>
+              <span className="font-semibold uppercase text-xs tracking-wide" style={{ color: "#6B7280" }}>Cliente: </span>
+              <span className="font-medium" style={{ color: "#1A2B4A" }}>{clientName}</span>
+            </div>
+            <div>
+              <span className="font-semibold uppercase text-xs tracking-wide" style={{ color: "#6B7280" }}>Data: </span>
+              <span className="font-medium" style={{ color: "#1A2B4A" }}>
+                {format(new Date(entry.data_relato + "T00:00:00"), "dd/MM/yyyy")}
+              </span>
+            </div>
+            <div>
+              <span className="font-semibold uppercase text-xs tracking-wide" style={{ color: "#6B7280" }}>Relato #: </span>
+              <span className="font-medium" style={{ color: "#1A2B4A" }}>{index + 1}</span>
+            </div>
           </div>
-        </SectionBlock>
-      )}
 
-      {/* Atividades */}
-      <SectionBlock title="Atividades do Dia" accent>
-        <p className="whitespace-pre-wrap" style={{ fontSize: 13 }}>{entry.atividades_dia}</p>
-      </SectionBlock>
+          {/* Weather */}
+          {weather && (
+            <SectionBlock title="Condições Climáticas">
+              <p style={{ fontSize: 13 }}>{weather.icon} {weather.label.replace(weather.icon + " ", "")}</p>
+            </SectionBlock>
+          )}
 
-      {/* Observações */}
-      {entry.observacoes && (
-        <SectionBlock title="Observações Importantes" accent>
-          <p className="whitespace-pre-wrap" style={{ fontSize: 13 }}>{entry.observacoes}</p>
-        </SectionBlock>
+          {/* Equipe */}
+          {entry.equipe && (
+            <SectionBlock title="Equipe">
+              <p className="whitespace-pre-wrap" style={{ fontSize: 13 }}>{entry.equipe}</p>
+            </SectionBlock>
+          )}
+
+          {/* Ferramentas */}
+          {usedTools.length > 0 && (
+            <SectionBlock title="Ferramentas Utilizadas">
+              <div className="flex flex-wrap gap-1.5">
+                {usedTools.map((t) => (
+                  <Badge key={t.id} variant="secondary" className="text-xs">{t.nome}</Badge>
+                ))}
+              </div>
+            </SectionBlock>
+          )}
+
+          {/* Atividades */}
+          <SectionBlock title="Atividades do Dia" accent>
+            <p className="whitespace-pre-wrap" style={{ fontSize: 13 }}>{entry.atividades_dia}</p>
+          </SectionBlock>
+
+          {/* Observações */}
+          {entry.observacoes && (
+            <SectionBlock title="Observações Importantes" accent>
+              <p className="whitespace-pre-wrap" style={{ fontSize: 13 }}>{entry.observacoes}</p>
+            </SectionBlock>
+          )}
+        </>
       )}
 
       {/* Fotos */}
-      {entry.images && entry.images.length > 0 && (
+      {slicedImages.length > 0 && (
         <SectionBlock title="Registros Fotográficos">
           <div className={
-            entry.images.length === 1
+            slicedImages.length === 1 && !isContinuation
               ? "flex justify-center"
               : "grid grid-cols-2 gap-3"
           }>
-            {entry.images.map((img) => (
+            {slicedImages.map((img) => (
               <div
                 key={img.id}
                 className="rounded overflow-hidden"
                 style={{
                   width: "100%",
-                  height: entry.images!.length === 1 ? 340 : 200,
+                  height: slicedImages.length === 1 && !isContinuation ? 340 : 200,
                   position: "relative",
                 }}
               >
