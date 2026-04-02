@@ -115,22 +115,34 @@ function drawPageFrame(doc: any) {
   doc.line(LINE_X, BORDER_INSET, LINE_X, PH - BORDER_INSET);
 }
 
-function drawHeader(doc: any, _client: any, pageLabel: string) {
+async function drawHeader(doc: any, _client: any, pageLabel: string) {
   const y = 12;
+  const logoSize = 18; // mm
+
+  // Draw logo
+  const logo = await fetchLogoData();
+  if (logo) {
+    try {
+      doc.addImage(logo.bytes, logo.format, CONTENT_X, y - 4, logoSize, logoSize);
+    } catch { /* skip if logo fails */ }
+  }
+
+  const textX = CONTENT_X + (logo ? logoSize + 3 : 0);
+
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
   doc.setTextColor(...NAVY);
-  doc.text("BAJA Construções", CONTENT_X, y);
+  doc.text("BAJA Construções", textX, y);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...GRAY);
-  doc.text("CNPJ: 12.345.678/0001-90", CONTENT_X, y + 5);
+  doc.text("CNPJ: 12.345.678/0001-90", textX, y + 5);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(...ORANGE);
-  doc.text("Relatório Diário de Obra", CONTENT_X, y + 13);
+  doc.text("Relatório Diário de Obra", textX, y + 13);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
