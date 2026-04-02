@@ -106,6 +106,7 @@ const App = () => (
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/set-password" element={<SetPasswordPage />} />
           <Route path="/relato-externo" element={<ExternalReportPage />} />
+          <Route path="/report-print" element={<ReportPrintPage />} />
           <Route path="/*" element={<AuthenticatedRoutes />} />
         </Routes>
       </BrowserRouter>
