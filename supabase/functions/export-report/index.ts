@@ -65,6 +65,16 @@ async function fetchReportData(supabase: any, clientId: string, dateFrom: string
 
 // Fetch image as Uint8Array (avoids expensive base64 string conversion)
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024; // 3MB limit per image
+const LOGO_URL = "https://elooeyntfqkygrwmifsv.supabase.co/storage/v1/object/public/report-images/baja-logo.png";
+
+let cachedLogo: { bytes: Uint8Array; format: string } | null = null;
+
+async function fetchLogoData(): Promise<{ bytes: Uint8Array; format: string } | null> {
+  if (cachedLogo) return cachedLogo;
+  const data = await fetchImageData(LOGO_URL);
+  if (data) cachedLogo = data;
+  return data;
+}
 
 async function fetchImageData(url: string): Promise<{ bytes: Uint8Array; format: string } | null> {
   try {
