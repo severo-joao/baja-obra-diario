@@ -274,7 +274,7 @@ async function generatePdfNative(
     currentPage++;
 
     drawPageFrame(doc);
-    let y = drawHeader(doc, client, `Relatório #${ei + 1}`);
+    let y = await drawHeader(doc, client, `Relatório #${ei + 1}`);
     drawFooter(doc, client, currentPage, totalPages);
 
     y = drawInfoBlock(doc, client, entry, ei, y);
