@@ -57,7 +57,7 @@ async function generatePdfViaHtml2Pdf(printUrl: string): Promise<ArrayBuffer> {
       marginBottom: 0,
       marginLeft: 0,
       marginRight: 0,
-      waitFor: 5000,
+      waitFor: 5,
     }),
   });
 
