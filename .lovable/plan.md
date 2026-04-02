@@ -1,52 +1,18 @@
 
 
-## Plano: Corrigir autenticação html2pdf.app
+## Plano: Corrigir PDF renderizando página de login
 
-### Problema
-A função `generatePdfViaHtml2Pdf` envia a API key no header `Authentication`, mas a documentação do html2pdf.app exige que o `apiKey` seja passado **dentro do body JSON**. Também usa o parâmetro `url` quando a API espera `html`.
+### Causa raiz
+A Edge Function `export-report` usa a URL publicada (`https://baja-obra-diario.lovable.app/report-print?token=...`), mas o site publicado ainda não tem a rota `/report-print`. O request cai no wildcard `/*` → `AuthenticatedRoutes` → redireciona para `/auth` (login). O html2pdf.app captura a página de login.
 
-### Correção em `supabase/functions/export-report/index.ts`
+### Solução
+**Publicar o projeto** para que a versão publicada inclua a rota `/report-print`.
 
-Alterar a função `generatePdfViaHtml2Pdf` (linhas 42-70):
+Alternativamente, se não quiser publicar agora, mudar temporariamente a URL no `export-report` para usar o preview URL:
 
-**Antes:**
-```typescript
-headers: {
-  "Content-Type": "application/json",
-  Authentication: apiKey,
-},
-body: JSON.stringify({
-  url: printUrl,
-  ...
-}),
-```
+**Arquivo**: `supabase/functions/export-report/index.ts`
+- Linha com `PUBLISHED_URL`: trocar de `https://baja-obra-diario.lovable.app` para o preview URL, ou melhor, publicar o projeto.
 
-**Depois:**
-```typescript
-headers: {
-  "Content-Type": "application/json",
-},
-body: JSON.stringify({
-  apiKey: apiKey,
-  html: printUrl,
-  landscape: false,
-  format: "A4",
-  marginTop: 0,
-  marginBottom: 0,
-  marginLeft: 0,
-  marginRight: 0,
-  waitFor: 5000,
-}),
-```
-
-Mudanças:
-1. Remover header `Authentication`
-2. Adicionar `apiKey` no body JSON
-3. Renomear `url` → `html` (aceita URL conforme docs)
-4. Usar nomes de parâmetros corretos da API (`format` em vez de `paper_size`, `marginTop` em vez de `margin_top`, `waitFor` em vez de `wait_for`)
-
-### Arquivo
-| Arquivo | Ação |
-|---------|------|
-| `supabase/functions/export-report/index.ts` | Corrigir `generatePdfViaHtml2Pdf` |
+### Recomendação
+Publicar o projeto é a solução correta. Após publicar, o endpoint funcionará automaticamente.
 
