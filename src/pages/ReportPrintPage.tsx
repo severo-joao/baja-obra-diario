@@ -2,24 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import A4ReportPage from "@/components/report/A4ReportPage";
 import ReportEntrySection from "@/components/report/ReportEntrySection";
-
-interface PrintData {
-  client: {
-    nome_cliente: string;
-    nome_empreitada: string;
-  };
-  entries: Array<{
-    id: string;
-    data_relato: string;
-    condicoes_climaticas: string;
-    equipe: string;
-    ferramentas_ids: string[];
-    atividades_dia: string;
-    observacoes: string;
-    images: Array<{ id: string; url: string; filename: string }>;
-  }>;
-  tools: Array<{ id: string; nome: string }>;
-}
+import type { ReportEntry, Tool } from "@/lib/types";
 
 export default function ReportPrintPage() {
   const [searchParams] = useSearchParams();
