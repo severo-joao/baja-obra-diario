@@ -92,14 +92,88 @@ export type Database = {
         }
         Relationships: []
       }
+      demanda_attachments: {
+        Row: {
+          created_at: string
+          demanda_id: string
+          filename: string
+          id: string
+          uploaded_by: string | null
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          demanda_id: string
+          filename?: string
+          id?: string
+          uploaded_by?: string | null
+          url: string
+        }
+        Update: {
+          created_at?: string
+          demanda_id?: string
+          filename?: string
+          id?: string
+          uploaded_by?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demanda_attachments_demanda_id_fkey"
+            columns: ["demanda_id"]
+            isOneToOne: false
+            referencedRelation: "demandas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      demanda_comments: {
+        Row: {
+          autor_email: string
+          autor_id: string | null
+          created_at: string
+          demanda_id: string
+          id: string
+          texto: string
+        }
+        Insert: {
+          autor_email?: string
+          autor_id?: string | null
+          created_at?: string
+          demanda_id: string
+          id?: string
+          texto: string
+        }
+        Update: {
+          autor_email?: string
+          autor_id?: string | null
+          created_at?: string
+          demanda_id?: string
+          id?: string
+          texto?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demanda_comments_demanda_id_fkey"
+            columns: ["demanda_id"]
+            isOneToOne: false
+            referencedRelation: "demandas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       demandas: {
         Row: {
+          coluna_id: string | null
           created_at: string
           data_notificacao: string
           descricao: string
           id: string
           intervalo_dias: number | null
+          ordem: number
+          prazo: string | null
           prioridade: string
+          responsavel: string
           sazonal: boolean
           status: string
           titulo: string
@@ -107,12 +181,16 @@ export type Database = {
           webhook_url: string
         }
         Insert: {
+          coluna_id?: string | null
           created_at?: string
           data_notificacao: string
           descricao?: string
           id?: string
           intervalo_dias?: number | null
+          ordem?: number
+          prazo?: string | null
           prioridade?: string
+          responsavel?: string
           sazonal?: boolean
           status?: string
           titulo: string
@@ -120,19 +198,31 @@ export type Database = {
           webhook_url?: string
         }
         Update: {
+          coluna_id?: string | null
           created_at?: string
           data_notificacao?: string
           descricao?: string
           id?: string
           intervalo_dias?: number | null
+          ordem?: number
+          prazo?: string | null
           prioridade?: string
+          responsavel?: string
           sazonal?: boolean
           status?: string
           titulo?: string
           updated_at?: string
           webhook_url?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "demandas_coluna_id_fkey"
+            columns: ["coluna_id"]
+            isOneToOne: false
+            referencedRelation: "kanban_columns"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       export_jobs: {
         Row: {
@@ -193,6 +283,30 @@ export type Database = {
           id?: string
           invited_by?: string
           status?: string
+        }
+        Relationships: []
+      }
+      kanban_columns: {
+        Row: {
+          cor: string
+          created_at: string
+          id: string
+          ordem: number
+          titulo: string
+        }
+        Insert: {
+          cor?: string
+          created_at?: string
+          id?: string
+          ordem?: number
+          titulo: string
+        }
+        Update: {
+          cor?: string
+          created_at?: string
+          id?: string
+          ordem?: number
+          titulo?: string
         }
         Relationships: []
       }
