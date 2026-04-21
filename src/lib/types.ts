@@ -107,8 +107,38 @@ export interface Demanda {
   data_notificacao: string;
   webhook_url: string;
   status: 'pendente' | 'aprovada';
+  coluna_id: string | null;
+  prazo: string | null;
+  responsavel: string;
+  ordem: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface KanbanColumn {
+  id: string;
+  titulo: string;
+  ordem: number;
+  cor: string;
+  created_at: string;
+}
+
+export interface DemandaAttachment {
+  id: string;
+  demanda_id: string;
+  url: string;
+  filename: string;
+  uploaded_by: string | null;
+  created_at: string;
+}
+
+export interface DemandaComment {
+  id: string;
+  demanda_id: string;
+  autor_id: string | null;
+  autor_email: string;
+  texto: string;
+  created_at: string;
 }
 
 export const DEMANDA_PRIORIDADE = [
