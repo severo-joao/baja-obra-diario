@@ -90,6 +90,37 @@ export function useLembrarAmanhaDemanda() {
   });
 }
 
+export function useMoveDemanda() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, coluna_id, ordem }: { id: string; coluna_id: string; ordem: number }) => {
+      const { error } = await supabase
+        .from("demandas")
+        .update({ coluna_id, ordem, updated_at: new Date().toISOString() } as any)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["demandas"] }),
+  });
+}
+
+export function useReorderDemandas() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (items: { id: string; coluna_id: string; ordem: number }[]) => {
+      await Promise.all(
+        items.map((it) =>
+          supabase
+            .from("demandas")
+            .update({ coluna_id: it.coluna_id, ordem: it.ordem } as any)
+            .eq("id", it.id)
+        )
+      );
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["demandas"] }),
+  });
+}
+
 export function useAprovarDemanda() {
   const qc = useQueryClient();
   return useMutation({
