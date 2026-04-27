@@ -138,13 +138,20 @@ export function DemandaDetailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Detalhes da tarefa</DialogTitle>
+          <DialogTitle>
+            Detalhes da tarefa
+            {readOnly && (
+              <span className="ml-2 text-xs font-normal text-muted-foreground">
+                (somente leitura — esta demanda não está atribuída a você)
+              </span>
+            )}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 pt-2">
           <div>
             <Label>Título</Label>
-            <Input value={titulo} onChange={(e) => setTitulo(e.target.value)} />
+            <Input value={titulo} onChange={(e) => setTitulo(e.target.value)} disabled={readOnly} />
           </div>
 
           <div>
@@ -153,6 +160,7 @@ export function DemandaDetailDialog({
               value={descricao}
               onChange={(e) => setDescricao(e.target.value)}
               rows={3}
+              disabled={readOnly}
             />
           </div>
 
