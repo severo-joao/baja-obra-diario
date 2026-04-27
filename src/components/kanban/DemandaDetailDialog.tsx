@@ -348,10 +348,10 @@ export function DemandaDetailDialog({
           </div>
 
           <div className="flex justify-between pt-2 border-t">
-            <Button variant="destructive" onClick={handleDelete}>
+            <Button variant="destructive" onClick={handleDelete} disabled={readOnly}>
               <Trash2 className="h-4 w-4 mr-1" /> Excluir
             </Button>
-            <Button onClick={handleSave} disabled={updateMut.isPending}>
+            <Button onClick={handleSave} disabled={updateMut.isPending || readOnly}>
               Salvar
             </Button>
           </div>
