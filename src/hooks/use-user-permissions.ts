@@ -90,6 +90,12 @@ export function useCanView(key: PermissionKey): boolean | undefined {
   return perm ? perm.can_view : true; // default allow if no record
 }
 
+export function useMyDemandasScope(): PermissionScope {
+  const { data } = useMyPermissions();
+  const perm = data?.find((p) => p.permission_key === "demandas");
+  return (perm?.scope as PermissionScope) ?? "all";
+}
+
 export function useUpdateUserPermissions() {
   const qc = useQueryClient();
   return useMutation({
