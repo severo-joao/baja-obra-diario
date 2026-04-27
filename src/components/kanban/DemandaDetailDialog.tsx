@@ -182,7 +182,7 @@ export function DemandaDetailDialog({
             </div>
             <div>
               <Label>Prioridade</Label>
-              <Select value={prioridade} onValueChange={(v: any) => setPrioridade(v)}>
+              <Select value={prioridade} onValueChange={(v: any) => setPrioridade(v)} disabled={readOnly}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
