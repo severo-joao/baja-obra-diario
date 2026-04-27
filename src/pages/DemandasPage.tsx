@@ -328,8 +328,15 @@ export default function DemandasPage() {
       ) : (
         <KanbanBoard
           columns={columns}
-          demandas={demandas ?? []}
-          onMove={(id, colId, ordem) => moveMut.mutate({ id, coluna_id: colId, ordem })}
+          demandas={visibleDemandas}
+          onMove={(id, colId, ordem) => {
+            const d = visibleDemandas.find((x) => x.id === id);
+            if (d && !canEditDemanda(d)) {
+              toast.error("Você só pode mover suas próprias demandas");
+              return;
+            }
+            moveMut.mutate({ id, coluna_id: colId, ordem });
+          }}
           onAddCard={(colId) => openNew(colId)}
           onCardClick={(d) => setSelected(d)}
           onRenameColumn={handleRenameColumn}
@@ -342,6 +349,9 @@ export default function DemandasPage() {
         columns={columns ?? []}
         open={!!selected}
         onOpenChange={(o) => !o && setSelected(null)}
+        readOnly={selected ? !canEditDemanda(selected) : false}
+        lockResponsavel={scope === "own"}
+        myEmail={myEmail}
       />
     </div>
   );
