@@ -26,10 +26,13 @@ export const PERMISSION_LABELS: Record<PermissionKey, string> = {
   configuracoes: "Configurações",
 };
 
+export type PermissionScope = "all" | "own";
+
 export interface UserPermission {
   permission_key: string;
   can_view: boolean;
   can_edit: boolean;
+  scope?: PermissionScope;
 }
 
 export interface UserWithPermissions {
