@@ -116,7 +116,8 @@ export function useUpdateUserPermissions() {
               permission_key: perm.permission_key,
               can_view: perm.can_view,
               can_edit: perm.can_edit,
-            },
+              scope: perm.scope ?? "all",
+            } as any,
             { onConflict: "user_id,permission_key" }
           );
         if (error) throw error;
