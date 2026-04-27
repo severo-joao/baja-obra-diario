@@ -75,6 +75,12 @@ export default function SettingsPage() {
     );
   };
 
+  const setScope = (key: string, scope: "all" | "own") => {
+    setEditPerms((prev) =>
+      prev.map((p) => (p.permission_key === key ? { ...p, scope } : p))
+    );
+  };
+
   const savePerms = async () => {
     if (!editingUser) return;
     try {
