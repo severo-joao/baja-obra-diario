@@ -63,6 +63,7 @@ export function DemandaDetailDialog({
   const { data: comments } = useDemandaComments(demanda?.id ?? null);
   const addCommentMut = useAddComment();
   const delCommentMut = useDeleteComment();
+  const { data: profiles } = useProfiles();
 
   const [titulo, setTitulo] = useState("");
   const [descricao, setDescricao] = useState("");
