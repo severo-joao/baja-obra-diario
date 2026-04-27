@@ -34,6 +34,10 @@ import { toast } from "sonner";
 export default function DemandasPage() {
   const { data: demandas, isLoading } = useDemandas();
   const { data: columns } = useKanbanColumns();
+  const { data: profiles } = useProfiles();
+  const { user } = useAuth();
+  const scope = useMyDemandasScope();
+  const myEmail = user?.email ?? "";
   const createMut = useCreateDemanda();
   const moveMut = useMoveDemanda();
   const createColMut = useCreateColumn();
