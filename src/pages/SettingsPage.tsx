@@ -52,6 +52,7 @@ export default function SettingsPage() {
         permission_key: key,
         can_view: existing?.can_view ?? true,
         can_edit: existing?.can_edit ?? true,
+        scope: (existing?.scope as "all" | "own") ?? "all",
       };
     });
     setEditPerms(perms);
