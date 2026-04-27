@@ -167,7 +167,7 @@ export function DemandaDetailDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Coluna</Label>
-              <Select value={colunaId} onValueChange={setColunaId}>
+              <Select value={colunaId} onValueChange={setColunaId} disabled={readOnly}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
