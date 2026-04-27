@@ -258,11 +258,28 @@ export default function DemandasPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Responsável</Label>
-                    <Input
-                      value={responsavel}
-                      onChange={(e) => setResponsavel(e.target.value)}
-                      placeholder="Nome"
-                    />
+                    <Select
+                      value={responsavel || "__none__"}
+                      onValueChange={(v) => setResponsavel(v === "__none__" ? "" : v)}
+                      disabled={scope === "own"}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Não atribuído" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Não atribuído</SelectItem>
+                        {profiles?.map((p) => (
+                          <SelectItem key={p.id} value={p.email}>
+                            {p.email}
+                          </SelectItem>
+                        ))}
+                        {/* Mostrar valor antigo (texto livre) se não estiver na lista */}
+                        {responsavel &&
+                          !profiles?.some((p) => p.email === responsavel) && (
+                            <SelectItem value={responsavel}>{responsavel}</SelectItem>
+                          )}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <Label>Prazo</Label>
