@@ -33,6 +33,7 @@ import {
   useAddComment,
   useDeleteComment,
 } from "@/hooks/use-demanda-comments";
+import { useProfiles } from "@/hooks/use-profiles";
 import { toast } from "sonner";
 
 interface DemandaDetailDialogProps {
@@ -40,6 +41,9 @@ interface DemandaDetailDialogProps {
   columns: KanbanColumn[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  readOnly?: boolean;
+  lockResponsavel?: boolean;
+  myEmail?: string;
 }
 
 export function DemandaDetailDialog({
@@ -47,6 +51,9 @@ export function DemandaDetailDialog({
   columns,
   open,
   onOpenChange,
+  readOnly = false,
+  lockResponsavel = false,
+  myEmail = "",
 }: DemandaDetailDialogProps) {
   const updateMut = useUpdateDemanda();
   const deleteMut = useDeleteDemanda();
