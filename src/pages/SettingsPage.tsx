@@ -23,6 +23,9 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
   useUsersWithPermissions,
   useUpdateUserPermissions,
   PERMISSION_KEYS,
@@ -52,6 +55,7 @@ export default function SettingsPage() {
         permission_key: key,
         can_view: existing?.can_view ?? true,
         can_edit: existing?.can_edit ?? true,
+        scope: (existing?.scope as "all" | "own") ?? "all",
       };
     });
     setEditPerms(perms);
@@ -71,6 +75,12 @@ export default function SettingsPage() {
             }
           : p
       )
+    );
+  };
+
+  const setScope = (key: string, scope: "all" | "own") => {
+    setEditPerms((prev) =>
+      prev.map((p) => (p.permission_key === key ? { ...p, scope } : p))
     );
   };
 
@@ -293,8 +303,9 @@ export default function SettingsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Seção</TableHead>
-                  <TableHead className="text-center w-24">Visualizar</TableHead>
-                  <TableHead className="text-center w-24">Editar</TableHead>
+                  <TableHead className="text-center w-20">Visualizar</TableHead>
+                  <TableHead className="text-center w-20">Editar</TableHead>
+                  <TableHead className="text-center w-40">Escopo</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -314,6 +325,24 @@ export default function SettingsPage() {
                         checked={perm.can_edit}
                         onCheckedChange={() => togglePerm(perm.permission_key, "can_edit")}
                       />
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {perm.permission_key === "demandas" && perm.can_view ? (
+                        <Select
+                          value={perm.scope ?? "all"}
+                          onValueChange={(v) => setScope(perm.permission_key, v as "all" | "own")}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Todas as demandas</SelectItem>
+                            <SelectItem value="own">Apenas as próprias</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

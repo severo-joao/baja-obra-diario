@@ -26,10 +26,13 @@ export const PERMISSION_LABELS: Record<PermissionKey, string> = {
   configuracoes: "Configurações",
 };
 
+export type PermissionScope = "all" | "own";
+
 export interface UserPermission {
   permission_key: string;
   can_view: boolean;
   can_edit: boolean;
+  scope?: PermissionScope;
 }
 
 export interface UserWithPermissions {
@@ -87,6 +90,12 @@ export function useCanView(key: PermissionKey): boolean | undefined {
   return perm ? perm.can_view : true; // default allow if no record
 }
 
+export function useMyDemandasScope(): PermissionScope {
+  const { data } = useMyPermissions();
+  const perm = data?.find((p) => p.permission_key === "demandas");
+  return (perm?.scope as PermissionScope) ?? "all";
+}
+
 export function useUpdateUserPermissions() {
   const qc = useQueryClient();
   return useMutation({
@@ -107,7 +116,8 @@ export function useUpdateUserPermissions() {
               permission_key: perm.permission_key,
               can_view: perm.can_view,
               can_edit: perm.can_edit,
-            },
+              scope: perm.scope ?? "all",
+            } as any,
             { onConflict: "user_id,permission_key" }
           );
         if (error) throw error;

@@ -26,11 +26,18 @@ import {
 } from "@/hooks/use-kanban-columns";
 import { KanbanBoard } from "@/components/kanban/KanbanBoard";
 import { DemandaDetailDialog } from "@/components/kanban/DemandaDetailDialog";
+import { useMyDemandasScope } from "@/hooks/use-user-permissions";
+import { useProfiles } from "@/hooks/use-profiles";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 export default function DemandasPage() {
   const { data: demandas, isLoading } = useDemandas();
   const { data: columns } = useKanbanColumns();
+  const { data: profiles } = useProfiles();
+  const { user } = useAuth();
+  const scope = useMyDemandasScope();
+  const myEmail = user?.email ?? "";
   const createMut = useCreateDemanda();
   const moveMut = useMoveDemanda();
   const createColMut = useCreateColumn();
@@ -56,10 +63,18 @@ export default function DemandasPage() {
     setTitulo("");
     setDescricao("");
     setPrioridade("media");
-    setResponsavel("");
+    setResponsavel(scope === "own" ? myEmail : "");
     setPrazoDate(undefined);
     setNewOpen(true);
   };
+
+  // Apply scope filter: 'own' shows only demandas where responsavel matches user email
+  const visibleDemandas = (demandas ?? []).filter((d) =>
+    scope === "own" ? (d.responsavel ?? "") === myEmail : true
+  );
+
+  const canEditDemanda = (d: { responsavel?: string | null }) =>
+    scope === "all" || (d.responsavel ?? "") === myEmail;
 
   const handleCreate = async () => {
     if (!titulo.trim()) {
@@ -243,11 +258,28 @@ export default function DemandasPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Responsável</Label>
-                    <Input
-                      value={responsavel}
-                      onChange={(e) => setResponsavel(e.target.value)}
-                      placeholder="Nome"
-                    />
+                    <Select
+                      value={responsavel || "__none__"}
+                      onValueChange={(v) => setResponsavel(v === "__none__" ? "" : v)}
+                      disabled={scope === "own"}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Não atribuído" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Não atribuído</SelectItem>
+                        {profiles?.map((p) => (
+                          <SelectItem key={p.id} value={p.email}>
+                            {p.email}
+                          </SelectItem>
+                        ))}
+                        {/* Mostrar valor antigo (texto livre) se não estiver na lista */}
+                        {responsavel &&
+                          !profiles?.some((p) => p.email === responsavel) && (
+                            <SelectItem value={responsavel}>{responsavel}</SelectItem>
+                          )}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <Label>Prazo</Label>
@@ -296,8 +328,15 @@ export default function DemandasPage() {
       ) : (
         <KanbanBoard
           columns={columns}
-          demandas={demandas ?? []}
-          onMove={(id, colId, ordem) => moveMut.mutate({ id, coluna_id: colId, ordem })}
+          demandas={visibleDemandas}
+          onMove={(id, colId, ordem) => {
+            const d = visibleDemandas.find((x) => x.id === id);
+            if (d && !canEditDemanda(d)) {
+              toast.error("Você só pode mover suas próprias demandas");
+              return;
+            }
+            moveMut.mutate({ id, coluna_id: colId, ordem });
+          }}
           onAddCard={(colId) => openNew(colId)}
           onCardClick={(d) => setSelected(d)}
           onRenameColumn={handleRenameColumn}
@@ -310,6 +349,9 @@ export default function DemandasPage() {
         columns={columns ?? []}
         open={!!selected}
         onOpenChange={(o) => !o && setSelected(null)}
+        readOnly={selected ? !canEditDemanda(selected) : false}
+        lockResponsavel={scope === "own"}
+        myEmail={myEmail}
       />
     </div>
   );

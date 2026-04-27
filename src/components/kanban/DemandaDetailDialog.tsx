@@ -33,6 +33,7 @@ import {
   useAddComment,
   useDeleteComment,
 } from "@/hooks/use-demanda-comments";
+import { useProfiles } from "@/hooks/use-profiles";
 import { toast } from "sonner";
 
 interface DemandaDetailDialogProps {
@@ -40,6 +41,9 @@ interface DemandaDetailDialogProps {
   columns: KanbanColumn[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  readOnly?: boolean;
+  lockResponsavel?: boolean;
+  myEmail?: string;
 }
 
 export function DemandaDetailDialog({
@@ -47,6 +51,9 @@ export function DemandaDetailDialog({
   columns,
   open,
   onOpenChange,
+  readOnly = false,
+  lockResponsavel = false,
+  myEmail = "",
 }: DemandaDetailDialogProps) {
   const updateMut = useUpdateDemanda();
   const deleteMut = useDeleteDemanda();
@@ -56,6 +63,7 @@ export function DemandaDetailDialog({
   const { data: comments } = useDemandaComments(demanda?.id ?? null);
   const addCommentMut = useAddComment();
   const delCommentMut = useDeleteComment();
+  const { data: profiles } = useProfiles();
 
   const [titulo, setTitulo] = useState("");
   const [descricao, setDescricao] = useState("");
@@ -130,13 +138,20 @@ export function DemandaDetailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Detalhes da tarefa</DialogTitle>
+          <DialogTitle>
+            Detalhes da tarefa
+            {readOnly && (
+              <span className="ml-2 text-xs font-normal text-muted-foreground">
+                (somente leitura — esta demanda não está atribuída a você)
+              </span>
+            )}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 pt-2">
           <div>
             <Label>Título</Label>
-            <Input value={titulo} onChange={(e) => setTitulo(e.target.value)} />
+            <Input value={titulo} onChange={(e) => setTitulo(e.target.value)} disabled={readOnly} />
           </div>
 
           <div>
@@ -145,13 +160,14 @@ export function DemandaDetailDialog({
               value={descricao}
               onChange={(e) => setDescricao(e.target.value)}
               rows={3}
+              disabled={readOnly}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Coluna</Label>
-              <Select value={colunaId} onValueChange={setColunaId}>
+              <Select value={colunaId} onValueChange={setColunaId} disabled={readOnly}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -166,7 +182,7 @@ export function DemandaDetailDialog({
             </div>
             <div>
               <Label>Prioridade</Label>
-              <Select value={prioridade} onValueChange={(v: any) => setPrioridade(v)}>
+              <Select value={prioridade} onValueChange={(v: any) => setPrioridade(v)} disabled={readOnly}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -184,11 +200,27 @@ export function DemandaDetailDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Responsável</Label>
-              <Input
-                value={responsavel}
-                onChange={(e) => setResponsavel(e.target.value)}
-                placeholder="Quem é responsável?"
-              />
+              <Select
+                value={responsavel || "__none__"}
+                onValueChange={(v) => setResponsavel(v === "__none__" ? "" : v)}
+                disabled={readOnly || lockResponsavel}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Não atribuído" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Não atribuído</SelectItem>
+                  {profiles?.map((p) => (
+                    <SelectItem key={p.id} value={p.email}>
+                      {p.email}
+                    </SelectItem>
+                  ))}
+                  {responsavel &&
+                    !profiles?.some((p) => p.email === responsavel) && (
+                      <SelectItem value={responsavel}>{responsavel}</SelectItem>
+                    )}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label>Prazo</Label>
@@ -316,10 +348,10 @@ export function DemandaDetailDialog({
           </div>
 
           <div className="flex justify-between pt-2 border-t">
-            <Button variant="destructive" onClick={handleDelete}>
+            <Button variant="destructive" onClick={handleDelete} disabled={readOnly}>
               <Trash2 className="h-4 w-4 mr-1" /> Excluir
             </Button>
-            <Button onClick={handleSave} disabled={updateMut.isPending}>
+            <Button onClick={handleSave} disabled={updateMut.isPending || readOnly}>
               Salvar
             </Button>
           </div>
