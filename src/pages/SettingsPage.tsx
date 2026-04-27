@@ -303,8 +303,9 @@ export default function SettingsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Seção</TableHead>
-                  <TableHead className="text-center w-24">Visualizar</TableHead>
-                  <TableHead className="text-center w-24">Editar</TableHead>
+                  <TableHead className="text-center w-20">Visualizar</TableHead>
+                  <TableHead className="text-center w-20">Editar</TableHead>
+                  <TableHead className="text-center w-40">Escopo</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -324,6 +325,24 @@ export default function SettingsPage() {
                         checked={perm.can_edit}
                         onCheckedChange={() => togglePerm(perm.permission_key, "can_edit")}
                       />
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {perm.permission_key === "demandas" && perm.can_view ? (
+                        <Select
+                          value={perm.scope ?? "all"}
+                          onValueChange={(v) => setScope(perm.permission_key, v as "all" | "own")}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Todas as demandas</SelectItem>
+                            <SelectItem value="own">Apenas as próprias</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
