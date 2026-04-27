@@ -26,6 +26,9 @@ import {
 } from "@/hooks/use-kanban-columns";
 import { KanbanBoard } from "@/components/kanban/KanbanBoard";
 import { DemandaDetailDialog } from "@/components/kanban/DemandaDetailDialog";
+import { useMyDemandasScope } from "@/hooks/use-user-permissions";
+import { useProfiles } from "@/hooks/use-profiles";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 export default function DemandasPage() {
