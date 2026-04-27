@@ -63,10 +63,18 @@ export default function DemandasPage() {
     setTitulo("");
     setDescricao("");
     setPrioridade("media");
-    setResponsavel("");
+    setResponsavel(scope === "own" ? myEmail : "");
     setPrazoDate(undefined);
     setNewOpen(true);
   };
+
+  // Apply scope filter: 'own' shows only demandas where responsavel matches user email
+  const visibleDemandas = (demandas ?? []).filter((d) =>
+    scope === "own" ? (d.responsavel ?? "") === myEmail : true
+  );
+
+  const canEditDemanda = (d: { responsavel?: string | null }) =>
+    scope === "all" || (d.responsavel ?? "") === myEmail;
 
   const handleCreate = async () => {
     if (!titulo.trim()) {
