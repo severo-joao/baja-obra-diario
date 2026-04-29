@@ -20,6 +20,8 @@ interface KanbanBoardProps {
   onCardClick: (demanda: Demanda) => void;
   onRenameColumn: (column: KanbanColumnT) => void;
   onDeleteColumn: (column: KanbanColumnT) => void;
+  onToggleConcluida?: (demanda: Demanda) => void;
+  canToggleDemanda?: (demanda: Demanda) => boolean;
 }
 
 export function KanbanBoard({
@@ -30,6 +32,8 @@ export function KanbanBoard({
   onCardClick,
   onRenameColumn,
   onDeleteColumn,
+  onToggleConcluida,
+  canToggleDemanda,
 }: KanbanBoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -81,6 +85,8 @@ export function KanbanBoard({
             onCardClick={onCardClick}
             onRename={onRenameColumn}
             onDelete={onDeleteColumn}
+            onToggleConcluida={onToggleConcluida}
+            canToggleDemanda={canToggleDemanda}
           />
         ))}
       </div>
