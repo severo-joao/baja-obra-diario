@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, Paperclip, Trash2, X } from "lucide-react";
+import { CalendarIcon, CheckCircle2, Paperclip, RotateCcw, Trash2, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +22,7 @@ import {
   type Demanda,
   type KanbanColumn,
 } from "@/lib/types";
-import { useUpdateDemanda, useDeleteDemanda } from "@/hooks/use-demandas";
+import { useUpdateDemanda, useDeleteDemanda, useToggleConcluida } from "@/hooks/use-demandas";
 import {
   useDemandaAttachments,
   useUploadAttachment,
@@ -57,6 +57,7 @@ export function DemandaDetailDialog({
 }: DemandaDetailDialogProps) {
   const updateMut = useUpdateDemanda();
   const deleteMut = useDeleteDemanda();
+  const toggleMut = useToggleConcluida();
   const { data: attachments } = useDemandaAttachments(demanda?.id ?? null);
   const uploadMut = useUploadAttachment();
   const delAttachMut = useDeleteAttachment();
@@ -134,17 +135,46 @@ export function DemandaDetailDialog({
     }
   };
 
+  const concluida = demanda.status === "concluida";
+
+  const handleToggleConcluida = async () => {
+    try {
+      await toggleMut.mutateAsync({ id: demanda.id, concluida: !concluida });
+      toast.success(concluida ? "Tarefa reaberta" : "Tarefa concluída");
+    } catch {
+      toast.error("Erro ao atualizar status");
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            Detalhes da tarefa
-            {readOnly && (
-              <span className="ml-2 text-xs font-normal text-muted-foreground">
-                (somente leitura — esta demanda não está atribuída a você)
-              </span>
-            )}
+          <DialogTitle className="flex items-center justify-between gap-3 pr-6">
+            <span>
+              Detalhes da tarefa
+              {readOnly && (
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  (somente leitura — esta demanda não está atribuída a você)
+                </span>
+              )}
+            </span>
+            <Button
+              size="sm"
+              variant={concluida ? "outline" : "default"}
+              onClick={handleToggleConcluida}
+              disabled={readOnly || toggleMut.isPending}
+            >
+              {concluida ? (
+                <>
+                  <RotateCcw className="h-4 w-4 mr-1" /> Reabrir
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4 mr-1" /> Concluir
+                </>
+              )}
+            </Button>
           </DialogTitle>
         </DialogHeader>
 
