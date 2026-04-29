@@ -46,9 +46,17 @@ export default function DemandasPage() {
   const myEmail = user?.email ?? "";
   const createMut = useCreateDemanda();
   const moveMut = useMoveDemanda();
+  const toggleMut = useToggleConcluida();
   const createColMut = useCreateColumn();
   const updateColMut = useUpdateColumn();
   const deleteColMut = useDeleteColumn();
+
+  // Filtros
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("abertas");
+  const [respFilter, setRespFilter] = useState<string>(ALL_RESP);
+  const [prioridadeFilter, setPrioridadeFilter] = useState<PrioridadeFilter>("todas");
+  const [dateFrom, setDateFrom] = useState<Date | undefined>();
+  const [dateTo, setDateTo] = useState<Date | undefined>();
 
   const [newOpen, setNewOpen] = useState(false);
   const [defaultColumnId, setDefaultColumnId] = useState<string | null>(null);
@@ -75,12 +83,69 @@ export default function DemandasPage() {
   };
 
   // Apply scope filter: 'own' shows only demandas where responsavel matches user email
-  const visibleDemandas = (demandas ?? []).filter((d) =>
+  const scopedDemandas = (demandas ?? []).filter((d) =>
     scope === "own" ? (d.responsavel ?? "") === myEmail : true
   );
 
+  // Apply user-controlled filters
+  const visibleDemandas = useMemo(() => {
+    return scopedDemandas.filter((d) => {
+      // Status
+      if (statusFilter === "concluidas" && d.status !== "concluida") return false;
+      if (statusFilter === "abertas" && d.status === "concluida") return false;
+
+      // Responsável
+      if (respFilter !== ALL_RESP) {
+        const resp = d.responsavel ?? "";
+        if (respFilter === NONE_RESP ? resp !== "" : resp !== respFilter) return false;
+      }
+
+      // Prioridade
+      if (prioridadeFilter !== "todas" && d.prioridade !== prioridadeFilter) return false;
+
+      // Range de prazo
+      if (dateFrom || dateTo) {
+        if (!d.prazo) return false;
+        const p = parseISO(d.prazo + "T12:00:00");
+        if (dateFrom && isBefore(p, dateFrom)) return false;
+        if (dateTo && isAfter(p, dateTo)) return false;
+      }
+      return true;
+    });
+  }, [scopedDemandas, statusFilter, respFilter, prioridadeFilter, dateFrom, dateTo]);
+
   const canEditDemanda = (d: { responsavel?: string | null }) =>
     scope === "all" || (d.responsavel ?? "") === myEmail;
+
+  const handleToggleConcluida = (d: Demanda) => {
+    if (!canEditDemanda(d)) {
+      toast.error("Você só pode concluir suas próprias demandas");
+      return;
+    }
+    toggleMut.mutate(
+      { id: d.id, concluida: d.status !== "concluida" },
+      {
+        onSuccess: () =>
+          toast.success(d.status === "concluida" ? "Tarefa reaberta" : "Tarefa concluída"),
+        onError: () => toast.error("Erro ao atualizar status"),
+      }
+    );
+  };
+
+  const clearFilters = () => {
+    setStatusFilter("abertas");
+    setRespFilter(ALL_RESP);
+    setPrioridadeFilter("todas");
+    setDateFrom(undefined);
+    setDateTo(undefined);
+  };
+
+  const hasActiveFilters =
+    statusFilter !== "abertas" ||
+    respFilter !== ALL_RESP ||
+    prioridadeFilter !== "todas" ||
+    !!dateFrom ||
+    !!dateTo;
 
   const handleCreate = async () => {
     if (!titulo.trim()) {
