@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { Plus } from "lucide-react";
-import { format } from "date-fns";
+import { useMemo, useState } from "react";
+import { Plus, X as XIcon } from "lucide-react";
+import { format, isAfter, isBefore, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -17,6 +17,7 @@ import {
   useDemandas,
   useCreateDemanda,
   useMoveDemanda,
+  useToggleConcluida,
 } from "@/hooks/use-demandas";
 import {
   useKanbanColumns,
@@ -30,6 +31,11 @@ import { useMyDemandasScope } from "@/hooks/use-user-permissions";
 import { useProfiles } from "@/hooks/use-profiles";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+
+type StatusFilter = "todas" | "abertas" | "concluidas";
+type PrioridadeFilter = "todas" | "alta" | "media" | "baixa";
+const NONE_RESP = "__none__";
+const ALL_RESP = "__all__";
 
 export default function DemandasPage() {
   const { data: demandas, isLoading } = useDemandas();
