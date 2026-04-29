@@ -106,7 +106,7 @@ export interface Demanda {
   intervalo_dias: number | null;
   data_notificacao: string;
   webhook_url: string;
-  status: 'pendente' | 'aprovada';
+  status: 'pendente' | 'aprovada' | 'concluida';
   coluna_id: string | null;
   prazo: string | null;
   responsavel: string;
@@ -150,6 +150,7 @@ export const DEMANDA_PRIORIDADE = [
 export const DEMANDA_STATUS = [
   { value: 'pendente', label: 'Pendente', color: 'bg-amber-100 text-amber-700' },
   { value: 'aprovada', label: 'Aprovada', color: 'bg-emerald-100 text-emerald-700' },
+  { value: 'concluida', label: 'Concluída', color: 'bg-slate-200 text-slate-700' },
 ] as const;
 
 export const TOOL_STATUS = [

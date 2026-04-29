@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { Plus } from "lucide-react";
-import { format } from "date-fns";
+import { useMemo, useState } from "react";
+import { Plus, X as XIcon } from "lucide-react";
+import { format, isAfter, isBefore, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -17,6 +17,7 @@ import {
   useDemandas,
   useCreateDemanda,
   useMoveDemanda,
+  useToggleConcluida,
 } from "@/hooks/use-demandas";
 import {
   useKanbanColumns,
@@ -31,6 +32,11 @@ import { useProfiles } from "@/hooks/use-profiles";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
+type StatusFilter = "todas" | "abertas" | "concluidas";
+type PrioridadeFilter = "todas" | "alta" | "media" | "baixa";
+const NONE_RESP = "__none__";
+const ALL_RESP = "__all__";
+
 export default function DemandasPage() {
   const { data: demandas, isLoading } = useDemandas();
   const { data: columns } = useKanbanColumns();
@@ -40,9 +46,17 @@ export default function DemandasPage() {
   const myEmail = user?.email ?? "";
   const createMut = useCreateDemanda();
   const moveMut = useMoveDemanda();
+  const toggleMut = useToggleConcluida();
   const createColMut = useCreateColumn();
   const updateColMut = useUpdateColumn();
   const deleteColMut = useDeleteColumn();
+
+  // Filtros
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("abertas");
+  const [respFilter, setRespFilter] = useState<string>(ALL_RESP);
+  const [prioridadeFilter, setPrioridadeFilter] = useState<PrioridadeFilter>("todas");
+  const [dateFrom, setDateFrom] = useState<Date | undefined>();
+  const [dateTo, setDateTo] = useState<Date | undefined>();
 
   const [newOpen, setNewOpen] = useState(false);
   const [defaultColumnId, setDefaultColumnId] = useState<string | null>(null);
@@ -69,12 +83,69 @@ export default function DemandasPage() {
   };
 
   // Apply scope filter: 'own' shows only demandas where responsavel matches user email
-  const visibleDemandas = (demandas ?? []).filter((d) =>
+  const scopedDemandas = (demandas ?? []).filter((d) =>
     scope === "own" ? (d.responsavel ?? "") === myEmail : true
   );
 
+  // Apply user-controlled filters
+  const visibleDemandas = useMemo(() => {
+    return scopedDemandas.filter((d) => {
+      // Status
+      if (statusFilter === "concluidas" && d.status !== "concluida") return false;
+      if (statusFilter === "abertas" && d.status === "concluida") return false;
+
+      // Responsável
+      if (respFilter !== ALL_RESP) {
+        const resp = d.responsavel ?? "";
+        if (respFilter === NONE_RESP ? resp !== "" : resp !== respFilter) return false;
+      }
+
+      // Prioridade
+      if (prioridadeFilter !== "todas" && d.prioridade !== prioridadeFilter) return false;
+
+      // Range de prazo
+      if (dateFrom || dateTo) {
+        if (!d.prazo) return false;
+        const p = parseISO(d.prazo + "T12:00:00");
+        if (dateFrom && isBefore(p, dateFrom)) return false;
+        if (dateTo && isAfter(p, dateTo)) return false;
+      }
+      return true;
+    });
+  }, [scopedDemandas, statusFilter, respFilter, prioridadeFilter, dateFrom, dateTo]);
+
   const canEditDemanda = (d: { responsavel?: string | null }) =>
     scope === "all" || (d.responsavel ?? "") === myEmail;
+
+  const handleToggleConcluida = (d: Demanda) => {
+    if (!canEditDemanda(d)) {
+      toast.error("Você só pode concluir suas próprias demandas");
+      return;
+    }
+    toggleMut.mutate(
+      { id: d.id, concluida: d.status !== "concluida" },
+      {
+        onSuccess: () =>
+          toast.success(d.status === "concluida" ? "Tarefa reaberta" : "Tarefa concluída"),
+        onError: () => toast.error("Erro ao atualizar status"),
+      }
+    );
+  };
+
+  const clearFilters = () => {
+    setStatusFilter("abertas");
+    setRespFilter(ALL_RESP);
+    setPrioridadeFilter("todas");
+    setDateFrom(undefined);
+    setDateTo(undefined);
+  };
+
+  const hasActiveFilters =
+    statusFilter !== "abertas" ||
+    respFilter !== ALL_RESP ||
+    prioridadeFilter !== "todas" ||
+    !!dateFrom ||
+    !!dateTo;
 
   const handleCreate = async () => {
     if (!titulo.trim()) {
@@ -323,6 +394,121 @@ export default function DemandasPage() {
         </div>
       </div>
 
+      {/* Barra de filtros */}
+      <div className="flex flex-wrap items-end gap-2 p-3 bg-muted/30 border rounded-lg">
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">Status</Label>
+          <Select value={statusFilter} onValueChange={(v: StatusFilter) => setStatusFilter(v)}>
+            <SelectTrigger className="w-[160px] h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas</SelectItem>
+              <SelectItem value="abertas">Não realizadas</SelectItem>
+              <SelectItem value="concluidas">Realizadas</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">Responsável</Label>
+          <Select value={respFilter} onValueChange={setRespFilter}>
+            <SelectTrigger className="w-[200px] h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_RESP}>Todos</SelectItem>
+              <SelectItem value={NONE_RESP}>Não atribuído</SelectItem>
+              {profiles?.map((p) => (
+                <SelectItem key={p.id} value={p.email}>
+                  {p.email}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">Prioridade</Label>
+          <Select
+            value={prioridadeFilter}
+            onValueChange={(v: PrioridadeFilter) => setPrioridadeFilter(v)}
+          >
+            <SelectTrigger className="w-[140px] h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas</SelectItem>
+              {DEMANDA_PRIORIDADE.map((p) => (
+                <SelectItem key={p.value} value={p.value}>
+                  {p.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">Prazo de</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "h-9 justify-start text-left font-normal w-[150px]",
+                  !dateFrom && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateFrom ? format(dateFrom, "dd/MM/yy", { locale: ptBR }) : "—"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={dateFrom}
+                onSelect={setDateFrom}
+                initialFocus
+                className="p-3 pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">Prazo até</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "h-9 justify-start text-left font-normal w-[150px]",
+                  !dateTo && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateTo ? format(dateTo, "dd/MM/yy", { locale: ptBR }) : "—"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={dateTo}
+                onSelect={setDateTo}
+                initialFocus
+                className="p-3 pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9">
+            <XIcon className="h-4 w-4 mr-1" /> Limpar
+          </Button>
+        )}
+      </div>
+
       {isLoading || !columns ? (
         <p className="text-muted-foreground text-center py-8">Carregando...</p>
       ) : (
@@ -341,6 +527,8 @@ export default function DemandasPage() {
           onCardClick={(d) => setSelected(d)}
           onRenameColumn={handleRenameColumn}
           onDeleteColumn={handleDeleteColumn}
+          onToggleConcluida={handleToggleConcluida}
+          canToggleDemanda={canEditDemanda}
         />
       )}
 

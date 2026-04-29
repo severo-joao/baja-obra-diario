@@ -18,6 +18,8 @@ interface KanbanColumnProps {
   onCardClick: (demanda: Demanda) => void;
   onRename: (column: KanbanColumnT) => void;
   onDelete: (column: KanbanColumnT) => void;
+  onToggleConcluida?: (demanda: Demanda) => void;
+  canToggleDemanda?: (demanda: Demanda) => boolean;
 }
 
 export function KanbanColumn({
@@ -27,6 +29,8 @@ export function KanbanColumn({
   onCardClick,
   onRename,
   onDelete,
+  onToggleConcluida,
+  canToggleDemanda,
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
@@ -74,7 +78,13 @@ export function KanbanColumn({
         )}
       >
         {demandas.map((d) => (
-          <KanbanCard key={d.id} demanda={d} onClick={() => onCardClick(d)} />
+          <KanbanCard
+            key={d.id}
+            demanda={d}
+            onClick={() => onCardClick(d)}
+            onToggleConcluida={onToggleConcluida}
+            canToggle={canToggleDemanda ? canToggleDemanda(d) : true}
+          />
         ))}
       </div>
 
