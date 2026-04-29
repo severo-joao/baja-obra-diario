@@ -394,6 +394,121 @@ export default function DemandasPage() {
         </div>
       </div>
 
+      {/* Barra de filtros */}
+      <div className="flex flex-wrap items-end gap-2 p-3 bg-muted/30 border rounded-lg">
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">Status</Label>
+          <Select value={statusFilter} onValueChange={(v: StatusFilter) => setStatusFilter(v)}>
+            <SelectTrigger className="w-[160px] h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas</SelectItem>
+              <SelectItem value="abertas">Não realizadas</SelectItem>
+              <SelectItem value="concluidas">Realizadas</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">Responsável</Label>
+          <Select value={respFilter} onValueChange={setRespFilter}>
+            <SelectTrigger className="w-[200px] h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_RESP}>Todos</SelectItem>
+              <SelectItem value={NONE_RESP}>Não atribuído</SelectItem>
+              {profiles?.map((p) => (
+                <SelectItem key={p.id} value={p.email}>
+                  {p.email}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">Prioridade</Label>
+          <Select
+            value={prioridadeFilter}
+            onValueChange={(v: PrioridadeFilter) => setPrioridadeFilter(v)}
+          >
+            <SelectTrigger className="w-[140px] h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas</SelectItem>
+              {DEMANDA_PRIORIDADE.map((p) => (
+                <SelectItem key={p.value} value={p.value}>
+                  {p.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">Prazo de</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "h-9 justify-start text-left font-normal w-[150px]",
+                  !dateFrom && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateFrom ? format(dateFrom, "dd/MM/yy", { locale: ptBR }) : "—"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={dateFrom}
+                onSelect={setDateFrom}
+                initialFocus
+                className="p-3 pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">Prazo até</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "h-9 justify-start text-left font-normal w-[150px]",
+                  !dateTo && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateTo ? format(dateTo, "dd/MM/yy", { locale: ptBR }) : "—"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={dateTo}
+                onSelect={setDateTo}
+                initialFocus
+                className="p-3 pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9">
+            <XIcon className="h-4 w-4 mr-1" /> Limpar
+          </Button>
+        )}
+      </div>
+
       {isLoading || !columns ? (
         <p className="text-muted-foreground text-center py-8">Carregando...</p>
       ) : (
@@ -412,6 +527,8 @@ export default function DemandasPage() {
           onCardClick={(d) => setSelected(d)}
           onRenameColumn={handleRenameColumn}
           onDeleteColumn={handleDeleteColumn}
+          onToggleConcluida={handleToggleConcluida}
+          canToggleDemanda={canEditDemanda}
         />
       )}
 
