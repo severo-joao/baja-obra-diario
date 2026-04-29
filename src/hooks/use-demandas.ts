@@ -121,6 +121,23 @@ export function useReorderDemandas() {
   });
 }
 
+export function useToggleConcluida() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, concluida }: { id: string; concluida: boolean }) => {
+      const { error } = await supabase
+        .from("demandas")
+        .update({
+          status: concluida ? "concluida" : "pendente",
+          updated_at: new Date().toISOString(),
+        } as any)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["demandas"] }),
+  });
+}
+
 export function useAprovarDemanda() {
   const qc = useQueryClient();
   return useMutation({
