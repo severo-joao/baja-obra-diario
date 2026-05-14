@@ -48,15 +48,22 @@ Deno.serve(async (req) => {
       });
     }
 
-    const results: { demanda_id: string; webhook_id: string; status: number | string }[] = [];
+    const results: { webhook_id: string; status: number | string; total_responsaveis: number; total_demandas: number }[] = [];
 
+    // Agrupar demandas por responsável
+    const grupos = new Map<string, typeof demandas>();
     for (const d of demandas) {
-      const actionBase = `${supabaseUrl}/functions/v1/demanda-action?id=${d.id}`;
+      const key = (d.responsavel && d.responsavel.trim()) || "Sem responsável";
+      if (!grupos.has(key)) grupos.set(key, []);
+      grupos.get(key)!.push(d);
+    }
 
-      const payload = {
-        event: "demanda.vencida",
-        timestamp: new Date().toISOString(),
-        data: {
+    const responsaveis = Array.from(grupos.entries()).map(([responsavel, lista]) => ({
+      responsavel,
+      total: lista.length,
+      demandas: lista.map((d) => {
+        const actionBase = `${supabaseUrl}/functions/v1/demanda-action?id=${d.id}`;
+        return {
           id: d.id,
           titulo: d.titulo,
           descricao: d.descricao,
@@ -64,45 +71,51 @@ Deno.serve(async (req) => {
           data_notificacao: d.data_notificacao,
           sazonal: d.sazonal,
           intervalo_dias: d.intervalo_dias,
-          responsavel: d.responsavel,
-        },
-        acoes: {
-          renovar: `${actionBase}&action=renovar`,
-          lembrar_amanha: `${actionBase}&action=lembrar_amanha`,
-          aprovar: `${actionBase}&action=aprovar`,
-        },
-      };
+          acoes: {
+            renovar: `${actionBase}&action=renovar`,
+            lembrar_amanha: `${actionBase}&action=lembrar_amanha`,
+            aprovar: `${actionBase}&action=aprovar`,
+          },
+        };
+      }),
+    }));
 
-      for (const wh of webhooks) {
-        try {
-          const resp = await fetch(wh.url, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-Webhook-Event": "demanda.vencida",
-              "X-Webhook-Timestamp": new Date().toISOString(),
-            },
-            body: JSON.stringify(payload),
-          });
+    const payload = {
+      event: "demanda.vencida",
+      timestamp: new Date().toISOString(),
+      total_demandas: demandas.length,
+      total_responsaveis: responsaveis.length,
+      responsaveis,
+    };
 
-          // Log the call
-          await supabase.from("webhook_logs").insert({
-            webhook_id: wh.id,
-            event_type: "demanda.vencida",
-            status_code: resp.status,
-            payload: JSON.stringify(payload),
-          });
+    for (const wh of webhooks) {
+      try {
+        const resp = await fetch(wh.url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Webhook-Event": "demanda.vencida",
+            "X-Webhook-Timestamp": new Date().toISOString(),
+          },
+          body: JSON.stringify(payload),
+        });
 
-          results.push({ demanda_id: d.id, webhook_id: wh.id, status: resp.status });
-        } catch (e) {
-          await supabase.from("webhook_logs").insert({
-            webhook_id: wh.id,
-            event_type: "demanda.vencida",
-            status_code: 0,
-            payload: JSON.stringify(payload),
-          });
-          results.push({ demanda_id: d.id, webhook_id: wh.id, status: `error: ${e.message}` });
-        }
+        await supabase.from("webhook_logs").insert({
+          webhook_id: wh.id,
+          event_type: "demanda.vencida",
+          status_code: resp.status,
+          payload: JSON.stringify(payload),
+        });
+
+        results.push({ webhook_id: wh.id, status: resp.status, total_responsaveis: responsaveis.length, total_demandas: demandas.length });
+      } catch (e) {
+        await supabase.from("webhook_logs").insert({
+          webhook_id: wh.id,
+          event_type: "demanda.vencida",
+          status_code: 0,
+          payload: JSON.stringify(payload),
+        });
+        results.push({ webhook_id: wh.id, status: `error: ${e.message}`, total_responsaveis: responsaveis.length, total_demandas: demandas.length });
       }
     }
 
