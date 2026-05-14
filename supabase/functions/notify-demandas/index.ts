@@ -64,6 +64,7 @@ Deno.serve(async (req) => {
           data_notificacao: d.data_notificacao,
           sazonal: d.sazonal,
           intervalo_dias: d.intervalo_dias,
+          responsavel: d.responsavel,
         },
         acoes: {
           renovar: `${actionBase}&action=renovar`,
