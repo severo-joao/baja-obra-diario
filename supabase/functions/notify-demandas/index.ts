@@ -15,17 +15,17 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Notificar 1 dia antes: incluir demandas com data_notificacao <= amanhã
+    // Notificar apenas demandas que vencem amanhã
     const amanha = new Date();
     amanha.setDate(amanha.getDate() + 1);
-    const limite = amanha.toISOString().split("T")[0];
+    const dataAmanha = amanha.toISOString().split("T")[0];
 
-    // Buscar demandas a vencer (até amanhã) ainda pendentes
+    // Buscar demandas pendentes que vencem exatamente amanhã
     const { data: demandas, error } = await supabase
       .from("demandas")
       .select("*")
       .eq("status", "pendente")
-      .lte("data_notificacao", limite);
+      .eq("data_notificacao", dataAmanha);
 
     if (error) throw error;
     if (!demandas?.length) {
